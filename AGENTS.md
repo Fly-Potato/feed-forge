@@ -25,6 +25,7 @@
 - 任务匹配 `.agents/skills/` 下某个 Skill 的说明时，先完整阅读对应 `SKILL.md`，再按其中流程执行。
 - 涉及 Tauri v2 的命令、配置、权限、插件、窗口、事件或 Rust 集成时，使用 `tauri-v2`。
 - 涉及 shadcn 组件、registry、样式、组合或 `components.json` 时，使用 `shadcn`。
+- 新增或修改 `src/modules/<业务>/`、`src/components/`、Rust 业务模块、Tauri IPC command/event、capability 或相关测试时，使用 `feed-forge-development`。
 - 修改 changelog 时，使用 `changelog`，且只维护现有格式下的 `Unreleased` 内容。
 
 ## 仓库知识沉淀

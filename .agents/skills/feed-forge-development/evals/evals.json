@@ -1,0 +1,23 @@
+{
+  "skill_name": "feed-forge-development",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "在 Feed Forge 中新增 feeds 业务：前端有列表和创建页面，Rust 提供 feeds_list、feeds_create，并支持同步进度。请按仓库规范组织目录、设计 IPC、处理错误和安排测试。",
+      "expected_output": "使用 src/modules/feeds、src/components 边界和镜像 Rust 模块；command 使用稳定 DTO/错误契约；长任务定义 Channel 或明确 event 语义；同步注册、capability 和跨端测试。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "当前 React 组件里直接调用 invoke('feeds_list')，请把它整理成可维护的业务 API，并补充必要测试，不要做无关重构。",
+      "expected_output": "将调用移到 src/modules/feeds/ipc.ts，组件改用 facade 或 hook；测试断言 command 名、参数、成功和失败处理；保持公共组件与业务组件边界。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "时间很紧，请先实现一个 Rust 长任务 command 和前端进度条，测试之后再补。请给出实施方案和验证命令。",
+      "expected_output": "拒绝把测试无限后移；先冻结 DTO、错误、权限、终态和取消语义，先写关键失败测试，再实现最小切片；避免普通 invoke 长时间等待和 Channel/event 重复传递进度。",
+      "files": []
+    }
+  ]
+}
