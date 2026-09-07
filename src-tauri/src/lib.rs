@@ -10,3 +10,13 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running Feed Forge");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::greet;
+
+    #[test]
+    fn greet_returns_welcome_message() {
+        assert_eq!(greet("Ada"), "Hello, Ada! Welcome to Feed Forge.");
+    }
+}
