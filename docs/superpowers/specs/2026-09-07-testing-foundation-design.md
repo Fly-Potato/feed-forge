@@ -1,5 +1,7 @@
 # Feed Forge 前后端测试基础设计
 
+> 文档状态：历史设计记录。当前测试规范与未来路线图以 [`docs/testing-strategy.md`](../../testing-strategy.md) 为准。
+
 ## 目标
 
 为现有 Tauri v2、React、TypeScript 和 Vite 工程建立快速、可维护的第一阶段测试基础。测试应覆盖当前 React 交互、Tauri IPC 调用契约和 Rust 命令逻辑，同时保持本地与持续集成执行成本较低。
@@ -163,9 +165,4 @@ src-tauri/src/lib.rs
 
 ## 后续升级条件
 
-满足以下任一条件时重新评估测试栈：
-
-- 出现依赖真实布局、Canvas、浏览器扩展 API 或 jsdom 无法模拟的组件行为：评估 Vitest Browser Mode。
-- 出现首个跨窗口、系统权限、文件选择、托盘或打包后关键业务流程：单独设计真实 Tauri 桌面 E2E。
-- Rust workspace、crate 或测试数量显著增长，测试执行时间成为瓶颈：评估 `cargo-nextest`，并继续用 `cargo test --doc` 覆盖 doctest。
-- 网络或文件系统集成增多：按具体边界评估轻量 fake、临时目录或 HTTP stub，不预先选择通用 mock 框架。
+本设计形成时的升级方向已迁移到 [`docs/testing-strategy.md`](../../testing-strategy.md) 的“未来路线图”。后续状态、触发条件和选型结论只在该文档维护，避免历史设计与当前策略产生分歧。
