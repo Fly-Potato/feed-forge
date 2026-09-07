@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "d04e43ec01e921558b93bb8046c14a42a22556689a2827243df900825a4e1604"
+    },
+    "tauri-v2": {
+      "source": "Fly-Potato/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/tauri-v2/SKILL.md",
+      "computedHash": "b889d5f574bbd05c6993691b53921fbe4ed39799305e90b9e1b6fca07b011054"
+    }
+  }
+}
