@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+import DOMPurify from "dompurify";
+
 import { Button } from "@/components/ui/button";
 
 import type { ArticleSummary } from "../types";
@@ -9,6 +12,16 @@ interface ArticleReaderProps {
 }
 
 export function ArticleReader({ article, onReadChange, onStarChange }: ArticleReaderProps) {
+  const body = article?.content ?? article?.summary ?? "暂无文章内容";
+  const sanitizedBody = useMemo(
+    () =>
+      DOMPurify.sanitize(body, {
+        USE_PROFILES: { html: true },
+        FORBID_ATTR: ["style"],
+      }),
+    [body],
+  );
+
   if (!article) {
     return (
       <section className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
@@ -40,9 +53,10 @@ export function ArticleReader({ article, onReadChange, onStarChange }: ArticleRe
           </Button>
         </div>
       </div>
-      <div className="mt-6 whitespace-pre-wrap text-sm leading-7">
-        {article.content ?? article.summary ?? "暂无文章内容"}
-      </div>
+      <div
+        className="article-content mt-6"
+        dangerouslySetInnerHTML={{ __html: sanitizedBody }}
+      />
     </article>
   );
 }

@@ -19,6 +19,7 @@
     "@tauri-apps/api": "^2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.5",
+    "dompurify": "^3.4.15",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "shadcn": "^4.21.0"
