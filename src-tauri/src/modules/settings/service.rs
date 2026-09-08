@@ -8,7 +8,7 @@ const KEY: &str = "preferences";
 
 pub fn validate_settings(refresh_interval_minutes: u32, theme: &str, _open_links_in_browser: bool) -> Result<(), AppError> {
     if !(1..=1440).contains(&refresh_interval_minutes) || !matches!(theme, "system" | "light" | "dark") {
-        return Err(AppError::new("invalid_input", "The settings values are invalid.", false));
+        return Err(AppError::new("invalid_input", "设置值无效。", false));
     }
     Ok(())
 }

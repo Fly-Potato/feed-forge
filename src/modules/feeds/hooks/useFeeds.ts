@@ -43,5 +43,5 @@ function readError(cause: unknown): string {
   if (cause instanceof IpcError) {
     return cause.message;
   }
-  return "Could not load local feeds.";
+  return "无法加载本地订阅源。";
 }

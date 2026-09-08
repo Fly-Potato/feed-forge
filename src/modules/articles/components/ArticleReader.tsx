@@ -12,7 +12,7 @@ export function ArticleReader({ article, onReadChange, onStarChange }: ArticleRe
   if (!article) {
     return (
       <section className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
-        Select an article to read
+        请选择文章开始阅读
       </section>
     );
   }
@@ -22,7 +22,7 @@ export function ArticleReader({ article, onReadChange, onStarChange }: ArticleRe
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {article.author ?? "Unknown author"}
+            {article.author ?? "未知作者"}
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight">{article.title}</h2>
           {article.publishedAt ? (
@@ -33,15 +33,15 @@ export function ArticleReader({ article, onReadChange, onStarChange }: ArticleRe
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => onStarChange(!article.isStarred)}>
-            {article.isStarred ? "Unstar" : "Star"}
+            {article.isStarred ? "取消收藏" : "收藏"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => onReadChange(!article.isRead)}>
-            {article.isRead ? "Mark unread" : "Mark read"}
+            {article.isRead ? "标为未读" : "标为已读"}
           </Button>
         </div>
       </div>
       <div className="mt-6 whitespace-pre-wrap text-sm leading-7">
-        {article.content ?? article.summary ?? "No article content available."}
+        {article.content ?? article.summary ?? "暂无文章内容"}
       </div>
     </article>
   );

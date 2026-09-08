@@ -22,7 +22,7 @@ export function normalizeIpcError(error: unknown): IpcError {
   }
   return new IpcError({
     code: "internal",
-    message: "The desktop operation failed.",
+    message: "桌面操作失败。",
     retryable: false,
   });
 }

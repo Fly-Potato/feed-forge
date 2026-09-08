@@ -9,9 +9,9 @@ interface ArticleListProps {
 }
 
 const filters: Array<{ value: ArticleFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "unread", label: "Unread" },
-  { value: "starred", label: "Starred" },
+  { value: "all", label: "全部" },
+  { value: "unread", label: "未读" },
+  { value: "starred", label: "收藏" },
 ];
 
 export function ArticleList({
@@ -25,9 +25,9 @@ export function ArticleList({
     <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="articles-title">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <h2 id="articles-title" className="font-semibold">
-          Articles
+          文章
         </h2>
-        <div className="flex gap-1" aria-label="Article filters">
+        <div className="flex gap-1" aria-label="文章筛选">
           {filters.map((item) => (
             <button
               key={item.value}
@@ -46,7 +46,7 @@ export function ArticleList({
         </div>
       </div>
       {articles.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">No articles yet</p>
+        <p className="p-4 text-sm text-muted-foreground">暂无文章</p>
       ) : (
         <ul className="min-h-0 overflow-auto">
           {articles.map((article) => (
@@ -64,7 +64,7 @@ export function ArticleList({
                   {article.title}
                 </span>
                 <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">
-                  {article.summary ?? "No summary available."}
+                  {article.summary ?? "暂无摘要"}
                 </span>
               </button>
             </li>

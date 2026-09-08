@@ -54,5 +54,5 @@ function readError(cause: unknown): string {
   if (cause instanceof IpcError) {
     return cause.message;
   }
-  return "Could not load local articles.";
+  return "无法加载本地文章。";
 }

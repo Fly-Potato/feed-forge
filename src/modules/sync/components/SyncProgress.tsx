@@ -15,14 +15,14 @@ export function SyncProgress({ event, error }: SyncProgressProps) {
 
   switch (event.event) {
     case "started":
-      return <p className="text-sm text-muted-foreground">Syncing {event.data.total} feeds...</p>;
+      return <p className="text-sm text-muted-foreground">正在同步 {event.data.total} 个订阅源...</p>;
     case "progress":
-      return <p className="text-sm text-muted-foreground">Synced {event.data.processed} of {event.data.total}</p>;
+      return <p className="text-sm text-muted-foreground">已同步 {event.data.processed}/{event.data.total} 个订阅源</p>;
     case "completed":
-      return <p className="text-sm text-muted-foreground">Sync complete: {event.data.processed} feeds.</p>;
+      return <p className="text-sm text-muted-foreground">同步完成，共 {event.data.processed} 个订阅源。</p>;
     case "failed":
-      return <p className="text-sm text-destructive" role="alert">Sync failed: {event.data.message}</p>;
+      return <p className="text-sm text-destructive" role="alert">同步失败：{event.data.message}</p>;
     case "canceled":
-      return <p className="text-sm text-muted-foreground">Sync canceled.</p>;
+      return <p className="text-sm text-muted-foreground">同步已取消。</p>;
   }
 }

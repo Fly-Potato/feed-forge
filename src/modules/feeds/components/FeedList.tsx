@@ -8,11 +8,11 @@ interface FeedListProps {
 
 export function FeedList({ feeds, selectedFeedId, onSelect }: FeedListProps) {
   if (feeds.length === 0) {
-    return <p className="text-sm text-muted-foreground">No feeds yet</p>;
+    return <p className="text-sm text-muted-foreground">暂无订阅源</p>;
   }
 
   return (
-    <ul className="space-y-1" aria-label="Feeds">
+    <ul className="space-y-1" aria-label="订阅源">
       {feeds.map((feed) => (
         <li key={feed.id}>
           <button

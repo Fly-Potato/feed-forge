@@ -56,11 +56,11 @@ function App() {
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Feed Forge</h1>
-            <p className="text-sm text-muted-foreground">A local RSS reader</p>
+            <p className="text-sm text-muted-foreground">本地 RSS 阅读器</p>
           </div>
           <div className="flex items-center gap-3">
             <SyncProgress event={sync.event} error={sync.error} />
-            <Button variant="outline" onClick={handleSync}>Refresh</Button>
+            <Button variant="outline" onClick={handleSync}>刷新</Button>
           </div>
         </div>
       </header>
@@ -70,8 +70,8 @@ function App() {
           <AddFeedForm onAdd={create} />
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Feeds</h2>
-              {feedsLoading ? <span className="text-xs text-muted-foreground">Loading...</span> : null}
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">订阅源</h2>
+              {feedsLoading ? <span className="text-xs text-muted-foreground">加载中...</span> : null}
             </div>
             {feedsError ? <p className="mb-2 text-sm text-destructive" role="alert">{feedsError}</p> : null}
             <FeedList feeds={feeds} selectedFeedId={selectedFeedId} onSelect={selectFeed} />
@@ -81,9 +81,9 @@ function App() {
 
         <section className="flex min-h-[280px] flex-col border-b border-border bg-background lg:border-r lg:border-b-0">
           {selectedFeedId === undefined ? (
-            <p className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">Select a feed to read articles</p>
+            <p className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">请选择订阅源以查看文章</p>
           ) : articlesLoading ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading articles...</p>
+            <p className="p-4 text-sm text-muted-foreground">正在加载文章...</p>
           ) : articlesError ? (
             <p className="p-4 text-sm text-destructive" role="alert">{articlesError}</p>
           ) : (

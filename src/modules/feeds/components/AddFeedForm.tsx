@@ -17,7 +17,7 @@ export function AddFeedForm({ onAdd }: AddFeedFormProps) {
     event.preventDefault();
     const value = url.trim();
     if (!value) {
-      setError("Enter a feed URL.");
+      setError("请输入订阅源地址。");
       return;
     }
 
@@ -27,7 +27,7 @@ export function AddFeedForm({ onAdd }: AddFeedFormProps) {
       await onAdd(value);
       setUrl("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not add feed.");
+      setError(cause instanceof Error ? cause.message : "添加订阅源失败。");
     } finally {
       setSubmitting(false);
     }
@@ -36,7 +36,7 @@ export function AddFeedForm({ onAdd }: AddFeedFormProps) {
   return (
     <form className="space-y-2" onSubmit={handleSubmit}>
       <Field>
-        <FieldLabel htmlFor="feed-url">Feed URL</FieldLabel>
+        <FieldLabel htmlFor="feed-url">订阅源地址</FieldLabel>
         <div className="flex gap-2">
           <Input
             id="feed-url"
@@ -48,7 +48,7 @@ export function AddFeedForm({ onAdd }: AddFeedFormProps) {
             disabled={submitting}
           />
           <Button type="submit" disabled={submitting}>
-            {submitting ? "Adding..." : "Add feed"}
+            {submitting ? "正在添加..." : "添加订阅"}
           </Button>
         </div>
       </Field>

@@ -22,29 +22,29 @@ impl AppError {
     }
 
     pub fn invalid_url() -> Self {
-        Self::new("invalid_url", "The feed URL must use http or https.", false)
+        Self::new("invalid_url", "订阅源地址必须使用 http 或 https 协议。", false)
     }
 
     pub fn duplicate() -> Self {
-        Self::new("duplicate", "This feed is already subscribed.", false)
+        Self::new("duplicate", "已订阅该订阅源。", false)
     }
 
     pub fn not_found() -> Self {
-        Self::new("not_found", "The requested local record was not found.", false)
+        Self::new("not_found", "未找到请求的本地记录。", false)
     }
 
     pub fn network() -> Self {
-        Self::new("network", "The feed could not be downloaded.", true)
+        Self::new("network", "无法下载订阅源。", true)
     }
 
     pub fn parse() -> Self {
-        Self::new("parse", "The feed format could not be parsed.", false)
+        Self::new("parse", "无法解析订阅源格式。", false)
     }
 
     pub fn storage<E: std::fmt::Display>(_error: E) -> Self {
         Self {
             code: "storage".to_string(),
-            message: "The local database operation failed.".to_string(),
+            message: "本地数据库操作失败。".to_string(),
             details: None,
             retryable: true,
         }

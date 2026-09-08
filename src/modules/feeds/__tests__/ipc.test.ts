@@ -22,7 +22,7 @@ describe("feeds IPC facade", () => {
 
     await expect(listFeeds()).rejects.toMatchObject({
       code: "internal",
-      message: "The desktop operation failed.",
+      message: "桌面操作失败。",
     });
   });
 });

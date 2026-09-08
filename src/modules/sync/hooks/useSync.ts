@@ -15,7 +15,7 @@ export function useSync() {
       const accepted = await startSync(feedId, setEvent);
       setJobId(accepted.jobId);
     } catch (cause) {
-      setError(cause instanceof IpcError ? cause.message : "Could not start sync.");
+      setError(cause instanceof IpcError ? cause.message : "无法开始同步。");
     }
   }, []);
 
@@ -26,7 +26,7 @@ export function useSync() {
     try {
       await cancelSync(jobId);
     } catch (cause) {
-      setError(cause instanceof IpcError ? cause.message : "Could not cancel sync.");
+      setError(cause instanceof IpcError ? cause.message : "无法取消同步。");
     }
   }, [jobId]);
 

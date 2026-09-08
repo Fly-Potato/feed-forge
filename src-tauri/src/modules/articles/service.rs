@@ -8,7 +8,7 @@ fn validate_filter(filter: &str) -> Result<(), AppError> {
     if matches!(filter, "all" | "unread" | "starred") {
         Ok(())
     } else {
-        Err(AppError::new("invalid_input", "The article filter is invalid.", false))
+        Err(AppError::new("invalid_input", "文章筛选条件无效。", false))
     }
 }
 
