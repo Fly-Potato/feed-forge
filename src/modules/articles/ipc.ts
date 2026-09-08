@@ -10,7 +10,7 @@ export async function listArticles(input: {
   offset: number;
 }): Promise<ArticlePage> {
   try {
-    return await invoke<ArticlePage>("articles_list", input);
+    return await invoke<ArticlePage>("articles_list", { input });
   } catch (error) {
     throw normalizeIpcError(error);
   }
@@ -22,8 +22,7 @@ export async function markArticleRead(
 ): Promise<ArticleSummary> {
   try {
     return await invoke<ArticleSummary>("articles_mark_read", {
-      articleId,
-      isRead,
+      input: { articleId, isRead },
     });
   } catch (error) {
     throw normalizeIpcError(error);
@@ -36,8 +35,7 @@ export async function toggleArticleStar(
 ): Promise<ArticleSummary> {
   try {
     return await invoke<ArticleSummary>("articles_toggle_star", {
-      articleId,
-      isStarred,
+      input: { articleId, isStarred },
     });
   } catch (error) {
     throw normalizeIpcError(error);

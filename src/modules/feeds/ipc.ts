@@ -5,7 +5,7 @@ import type { FeedSummary } from "./types";
 
 export async function listFeeds(): Promise<FeedSummary[]> {
   try {
-    return await invoke<FeedSummary[]>("feeds_list", {});
+    return await invoke<FeedSummary[]>("feeds_list", { input: {} });
   } catch (error) {
     throw normalizeIpcError(error);
   }
@@ -13,7 +13,7 @@ export async function listFeeds(): Promise<FeedSummary[]> {
 
 export async function addFeed(url: string): Promise<FeedSummary> {
   try {
-    return await invoke<FeedSummary>("feeds_add", { url });
+    return await invoke<FeedSummary>("feeds_add", { input: { url } });
   } catch (error) {
     throw normalizeIpcError(error);
   }
@@ -21,7 +21,9 @@ export async function addFeed(url: string): Promise<FeedSummary> {
 
 export async function removeFeed(feedId: number): Promise<{ feedId: number }> {
   try {
-    return await invoke<{ feedId: number }>("feeds_remove", { feedId });
+    return await invoke<{ feedId: number }>("feeds_remove", {
+      input: { feedId },
+    });
   } catch (error) {
     throw normalizeIpcError(error);
   }

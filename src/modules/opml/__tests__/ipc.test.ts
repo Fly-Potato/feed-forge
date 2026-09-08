@@ -12,7 +12,7 @@ describe("OPML IPC", () => {
     });
 
     await expect(importOpml("<opml />")).resolves.toEqual({ imported: 2, skipped: 1 });
-    expect(calls).toEqual([["opml_import", { content: "<opml />" }]]);
+    expect(calls).toEqual([["opml_import", { input: { content: "<opml />" } }]]);
   });
 
   test("exports OPML with an empty object input", async () => {
@@ -23,6 +23,6 @@ describe("OPML IPC", () => {
     });
 
     await expect(exportOpml()).resolves.toBe("<opml />");
-    expect(calls).toEqual([["opml_export", {}]]);
+    expect(calls).toEqual([["opml_export", { input: {} }]]);
   });
 });

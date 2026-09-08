@@ -20,7 +20,7 @@ export async function startSync(
 
 export async function cancelSync(jobId: number): Promise<SyncAccepted> {
   try {
-    return await invoke<SyncAccepted>("sync_cancel", { jobId });
+    return await invoke<SyncAccepted>("sync_cancel", { input: { jobId } });
   } catch (error) {
     throw normalizeIpcError(error);
   }

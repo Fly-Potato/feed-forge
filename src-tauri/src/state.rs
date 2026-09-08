@@ -23,6 +23,7 @@ struct Job {
 
 impl SyncManager {
     pub fn new() -> Self {
+        let _ = rustls::crypto::ring::default_provider().install_default();
         Self {
             next_id: AtomicU64::new(1),
             jobs: Mutex::new(HashMap::new()),
@@ -61,5 +62,45 @@ impl SyncManager {
 
     pub fn status(&self, job_id: u64) -> Option<SyncStatus> {
         self.jobs.lock().unwrap().get(&job_id).map(|job| job.status.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use crate::modules::sync::parser::parse_feed;
+
+    use super::SyncManager;
+
+    #[test]
+    fn rustls_backend_is_available_for_sync_client() {
+        SyncManager::new();
+        reqwest::Client::builder()
+            .tls_backend_rustls()
+            .build()
+            .expect("the sync client requires the rustls HTTPS backend");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires public network access"]
+    async fn downloads_and_parses_github_atom_feed() {
+        let response = tokio::time::timeout(
+            Duration::from_secs(20),
+            SyncManager::new()
+                .client
+                .get("https://github.com/openai/codex/releases.atom")
+                .send(),
+        )
+        .await
+        .expect("the GitHub Atom request timed out")
+        .expect("the GitHub Atom request failed")
+        .error_for_status()
+        .expect("GitHub returned an error status");
+        let body = response.bytes().await.expect("the response body was invalid");
+        let feed = parse_feed(&body).expect("GitHub did not return a supported feed");
+
+        assert!(!feed.title.trim().is_empty());
+        assert!(!feed.articles.is_empty());
     }
 }
