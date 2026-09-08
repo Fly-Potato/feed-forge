@@ -1,3 +1,10 @@
+mod db;
+mod error;
+mod modules;
+mod state;
+
+use tauri::Manager;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {name}! Welcome to Feed Forge.")
@@ -6,7 +13,31 @@ fn greet(name: &str) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![greet])
+        .setup(|app| {
+            let pool = tauri::async_runtime::block_on(db::init_db(&app.handle()))?;
+            app.manage(state::AppState {
+                db: pool,
+                sync: std::sync::Arc::new(state::SyncManager::new()),
+            });
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            modules::feeds::commands::feeds_list,
+            modules::feeds::commands::feeds_add,
+            modules::feeds::commands::feeds_update,
+            modules::feeds::commands::feeds_remove,
+            modules::articles::commands::articles_list,
+            modules::articles::commands::articles_mark_read,
+            modules::articles::commands::articles_toggle_star,
+            modules::sync::commands::sync_start,
+            modules::sync::commands::sync_cancel,
+            modules::sync::commands::sync_status,
+            modules::opml::commands::opml_import,
+            modules::opml::commands::opml_export,
+            modules::settings::commands::settings_get,
+            modules::settings::commands::settings_update,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Feed Forge");
 }

@@ -1,71 +1,110 @@
+import { useEffect, useState } from "react";
+
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { invoke } from "@tauri-apps/api/core";
-import { useState, type FormEvent } from "react";
+import { AddFeedForm } from "@/modules/feeds/components/AddFeedForm";
+import { FeedList } from "@/modules/feeds/components/FeedList";
+import { useFeeds } from "@/modules/feeds/hooks/useFeeds";
+import { ArticleList } from "@/modules/articles/components/ArticleList";
+import { ArticleReader } from "@/modules/articles/components/ArticleReader";
+import type { ArticleFilter, ArticleSummary } from "@/modules/articles/types";
+import { useArticles } from "@/modules/articles/hooks/useArticles";
+import { SyncProgress } from "@/modules/sync/components/SyncProgress";
+import { useSync } from "@/modules/sync/hooks/useSync";
+import { OpmlTools } from "@/modules/opml/components/OpmlTools";
 
 function App() {
-  const [name, setName] = useState("");
-  const [message, setMessage] = useState(
-    "Enter a name to verify the desktop bridge.",
-  );
+  const { feeds, loading: feedsLoading, error: feedsError, refresh, create } = useFeeds();
+  const [selectedFeedId, setSelectedFeedId] = useState<number>();
+  const [selectedArticle, setSelectedArticle] = useState<ArticleSummary>();
+  const [filter, setFilter] = useState<ArticleFilter>("all");
+  const { items, loading: articlesLoading, error: articlesError, refresh: refreshArticles, setRead, setStarred } = useArticles(selectedFeedId, filter);
+  const sync = useSync();
 
-  async function greet(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    try {
-      const greeting = await invoke<string>("greet", { name });
-      setMessage(greeting);
-    } catch {
-      setMessage("Could not reach the Feed Forge desktop runtime.");
+  useEffect(() => {
+    if (selectedFeedId !== undefined && !feeds.some((feed) => feed.id === selectedFeedId)) {
+      setSelectedFeedId(undefined);
+      setSelectedArticle(undefined);
     }
+  }, [feeds, selectedFeedId]);
+
+  useEffect(() => {
+    if (selectedArticle) {
+      const updatedArticle = items.find((article) => article.id === selectedArticle.id);
+      if (updatedArticle) setSelectedArticle(updatedArticle);
+    }
+  }, [items, selectedArticle]);
+
+  useEffect(() => {
+    if (sync.event?.event === "completed") {
+      void refresh();
+      void refreshArticles();
+    }
+  }, [refresh, refreshArticles, sync.event]);
+
+  function selectFeed(feedId: number) {
+    setSelectedFeedId(feedId);
+    setSelectedArticle(undefined);
+  }
+
+  async function handleSync() {
+    await sync.start(selectedFeedId);
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
-      <section
-        className="w-full max-w-xl rounded-xl border border-border border-t-4 border-t-primary bg-card p-8 text-card-foreground shadow-xl sm:p-11"
-        aria-labelledby="welcome-title"
-      >
-        <p className="mb-3 font-mono text-xs font-semibold uppercase tracking-widest text-primary">
-          Desktop skeleton · Tauri v2
-        </p>
-        <h1
-          id="welcome-title"
-          className="text-4xl font-bold tracking-tight sm:text-5xl"
-        >
-          Welcome to Feed Forge
-        </h1>
-        <p className="mt-4 max-w-lg text-muted-foreground">
-          React renders this interface. Rust answers through one minimal IPC
-          command.
-        </p>
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Feed Forge</h1>
+            <p className="text-sm text-muted-foreground">A local RSS reader</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <SyncProgress event={sync.event} error={sync.error} />
+            <Button variant="outline" onClick={handleSync}>Refresh</Button>
+          </div>
+        </div>
+      </header>
 
-        <form className="mt-8" onSubmit={greet}>
-          <Field>
-            <FieldLabel htmlFor="greet-input">Name</FieldLabel>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <Input
-                id="greet-input"
-                className="h-11"
-                onChange={(event) => setName(event.currentTarget.value)}
-                placeholder="Enter a name"
-                value={name}
-              />
-              <Button className="h-11 px-5" type="submit">
-                Send greeting
-              </Button>
+      <div className="mx-auto grid min-h-[calc(100vh-81px)] max-w-[1600px] gap-0 lg:grid-cols-[280px_minmax(280px,380px)_minmax(0,1fr)]">
+        <aside className="border-b border-border bg-card p-4 lg:border-r lg:border-b-0">
+          <AddFeedForm onAdd={create} />
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Feeds</h2>
+              {feedsLoading ? <span className="text-xs text-muted-foreground">Loading...</span> : null}
             </div>
-          </Field>
-        </form>
+            {feedsError ? <p className="mb-2 text-sm text-destructive" role="alert">{feedsError}</p> : null}
+            <FeedList feeds={feeds} selectedFeedId={selectedFeedId} onSelect={selectFeed} />
+            <OpmlTools onImported={refresh} />
+          </div>
+        </aside>
 
-        <p
-          className="mt-6 min-h-6 border-t border-border pt-5 text-sm text-muted-foreground"
-          role="status"
-        >
-          {message}
-        </p>
-      </section>
+        <section className="flex min-h-[280px] flex-col border-b border-border bg-background lg:border-r lg:border-b-0">
+          {selectedFeedId === undefined ? (
+            <p className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">Select a feed to read articles</p>
+          ) : articlesLoading ? (
+            <p className="p-4 text-sm text-muted-foreground">Loading articles...</p>
+          ) : articlesError ? (
+            <p className="p-4 text-sm text-destructive" role="alert">{articlesError}</p>
+          ) : (
+            <ArticleList
+              articles={items}
+              filter={filter}
+              selectedArticleId={selectedArticle?.id}
+              onFilterChange={(nextFilter) => { setFilter(nextFilter); setSelectedArticle(undefined); }}
+              onSelect={setSelectedArticle}
+            />
+          )}
+        </section>
+
+        <section className="flex min-h-[320px] bg-card">
+          <ArticleReader
+            article={selectedArticle}
+            onReadChange={(isRead) => selectedArticle && void setRead(selectedArticle.id, isRead)}
+            onStarChange={(isStarred) => selectedArticle && void setStarred(selectedArticle.id, isStarred)}
+          />
+        </section>
+      </div>
     </main>
   );
 }

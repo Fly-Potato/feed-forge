@@ -1,0 +1,47 @@
+import { useCallback, useEffect, useState } from "react";
+
+import { IpcError } from "../../../lib/ipc/errors";
+import { addFeed, listFeeds, removeFeed } from "../ipc";
+import type { FeedSummary } from "../types";
+
+export function useFeeds() {
+  const [feeds, setFeeds] = useState<FeedSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      setFeeds(await listFeeds());
+      setError(null);
+    } catch (cause) {
+      setError(readError(cause));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const create = useCallback(async (url: string) => {
+    const feed = await addFeed(url);
+    setFeeds((current) => [...current, feed].sort((a, b) => a.title.localeCompare(b.title)));
+    return feed;
+  }, []);
+
+  const remove = useCallback(async (feedId: number) => {
+    await removeFeed(feedId);
+    setFeeds((current) => current.filter((feed) => feed.id !== feedId));
+  }, []);
+
+  return { feeds, loading, error, refresh, create, remove };
+}
+
+function readError(cause: unknown): string {
+  if (cause instanceof IpcError) {
+    return cause.message;
+  }
+  return "Could not load local feeds.";
+}
