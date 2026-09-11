@@ -1,10 +1,86 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import App from "./App";
 
+const windowControls = vi.hoisted(() => ({
+  close: vi.fn(),
+  minimize: vi.fn(),
+  toggleMaximize: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => windowControls,
+}));
+
 describe("App", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("Windows 应用壳提供完整的窗口控制", () => {
+    mockIPC((command) => {
+      if (command === "feeds_list") return [];
+      throw new Error(`Unexpected IPC command: ${command}`);
+    });
+
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "最小化" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "最大化或还原" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "关闭到托盘" })).toBeInTheDocument();
+  });
+
+  test("最小化按钮请求最小化当前窗口", async () => {
+    mockIPC((command) => {
+      if (command === "feeds_list") return [];
+      throw new Error(`Unexpected IPC command: ${command}`);
+    });
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("button", { name: "最小化" }));
+
+    expect(windowControls.minimize).toHaveBeenCalledOnce();
+  });
+
+  test("最大化按钮切换当前窗口的最大化状态", async () => {
+    mockIPC((command) => {
+      if (command === "feeds_list") return [];
+      throw new Error(`Unexpected IPC command: ${command}`);
+    });
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("button", { name: "最大化或还原" }));
+
+    expect(windowControls.toggleMaximize).toHaveBeenCalledOnce();
+  });
+
+  test("关闭按钮向当前窗口发出关闭请求", async () => {
+    mockIPC((command) => {
+      if (command === "feeds_list") return [];
+      throw new Error(`Unexpected IPC command: ${command}`);
+    });
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("button", { name: "关闭到托盘" }));
+
+    expect(windowControls.close).toHaveBeenCalledOnce();
+  });
+
+  test("双击窗口标题栏不重复调用公开的最大化 API", async () => {
+    mockIPC((command) => {
+      if (command === "feeds_list") return [];
+      throw new Error(`Unexpected IPC command: ${command}`);
+    });
+    render(<App />);
+
+    await userEvent.dblClick(screen.getByLabelText("窗口标题栏"));
+
+    expect(windowControls.toggleMaximize).not.toHaveBeenCalled();
+  });
+
   test("显示中文的本地 RSS 阅读器空状态", async () => {
     const calls: string[] = [];
     mockIPC((command) => {

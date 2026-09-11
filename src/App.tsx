@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { AppTitleBar } from "@/components/common/AppTitleBar";
 import { AddFeedForm } from "@/modules/feeds/components/AddFeedForm";
 import { FeedList } from "@/modules/feeds/components/FeedList";
 import { useFeeds } from "@/modules/feeds/hooks/useFeeds";
@@ -50,8 +51,13 @@ function App() {
     await sync.start(selectedFeedId);
   }
 
+  const showCustomTitleBar =
+    !import.meta.env.TAURI_ENV_PLATFORM ||
+    import.meta.env.TAURI_ENV_PLATFORM === "windows";
+
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="flex min-h-screen flex-col bg-background text-foreground">
+      {showCustomTitleBar ? <AppTitleBar /> : null}
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
@@ -65,7 +71,7 @@ function App() {
         </div>
       </header>
 
-      <div className="mx-auto grid min-h-[calc(100vh-81px)] max-w-[1600px] gap-0 lg:grid-cols-[280px_minmax(280px,380px)_minmax(0,1fr)]">
+      <div className="mx-auto grid w-full flex-1 max-w-[1600px] gap-0 lg:grid-cols-[280px_minmax(280px,380px)_minmax(0,1fr)]">
         <aside className="border-b border-border bg-card p-4 lg:border-r lg:border-b-0">
           <AddFeedForm onAdd={create} />
           <div className="mt-6">

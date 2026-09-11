@@ -90,7 +90,7 @@ src-tauri/tests/*.rs        # 后续跨模块集成测试
 | 规划 | 当前状态 | 触发条件 |
 | --- | --- | --- |
 | Vitest Browser Mode | 暂缓 | jsdom 无法可靠覆盖真实布局、Canvas 或所需浏览器 API |
-| Tauri 桌面 E2E | 暂缓 | 出现跨窗口、系统权限、文件选择、托盘或打包后关键流程 |
+| Tauri 桌面 E2E | 已触发 | Windows 托盘、原生菜单、关闭到托盘和无边框窗口控制需要打包后运行时验证；当前先保留 Windows 人工验收，后续评估 tauri-driver 等桌面自动化方案 |
 | `cargo-nextest` | 暂缓 | Rust workspace、crate 或测试数量增长，现有执行时间成为明确瓶颈 |
 | 网络与文件测试设施 | 已触发 | HTTPS RSS 抓取已成为核心业务边界，需要可重复验证 TLS 客户端能力且不依赖公网可用性 |
 

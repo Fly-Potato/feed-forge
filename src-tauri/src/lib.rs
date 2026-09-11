@@ -2,6 +2,8 @@ mod db;
 mod error;
 mod modules;
 mod state;
+#[cfg(target_os = "windows")]
+mod tray;
 
 use tauri::Manager;
 
@@ -12,13 +14,22 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    #[cfg(target_os = "windows")]
+    let builder = builder
+        .plugin(tauri_plugin_dialog::init())
+        .on_window_event(tray::handle_window_event);
+
+    builder
         .setup(|app| {
             let pool = tauri::async_runtime::block_on(db::init_db(&app.handle()))?;
             app.manage(state::AppState {
                 db: pool,
                 sync: std::sync::Arc::new(state::SyncManager::new()),
             });
+            #[cfg(target_os = "windows")]
+            tray::setup(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
