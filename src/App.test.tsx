@@ -33,6 +33,23 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "关闭到托盘" })).toBeInTheDocument();
   });
 
+  test("窗口标题栏位于应用内容滚动区域之外", () => {
+    mockIPC((command) => {
+      if (command === "feeds_list") return [];
+      throw new Error(`Unexpected IPC command: ${command}`);
+    });
+
+    render(<App />);
+
+    const appShell = screen.getByRole("main");
+    const titleBar = screen.getByLabelText("窗口标题栏");
+    const contentScroller = screen.getByRole("region", { name: "应用内容" });
+
+    expect(appShell).toHaveClass("h-screen", "overflow-hidden");
+    expect(contentScroller).toHaveClass("min-h-0", "overflow-y-auto");
+    expect(contentScroller).not.toContainElement(titleBar);
+  });
+
   test("最小化按钮请求最小化当前窗口", async () => {
     mockIPC((command) => {
       if (command === "feeds_list") return [];
