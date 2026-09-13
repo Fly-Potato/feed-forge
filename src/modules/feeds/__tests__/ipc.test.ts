@@ -2,6 +2,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { describe, expect, test } from "vitest";
 
 import { addFeed, listFeeds, removeFeed } from "../ipc";
+import * as feedsIpc from "../ipc";
 
 describe("feeds IPC facade", () => {
   test("calls feeds_list with an object input", async () => {
@@ -41,6 +42,21 @@ describe("feeds IPC facade", () => {
 
     await expect(removeFeed(42)).resolves.toEqual({ feedId: 42 });
     expect(calls).toEqual([["feeds_remove", { input: { feedId: 42 } }]]);
+  });
+
+  test("wraps the feed ID and title in the feeds_update input argument", async () => {
+    const calls: Array<[string, unknown]> = [];
+    mockIPC((command, payload) => {
+      calls.push([command, payload]);
+      return { id: 42, title: "OpenAI", url: "https://example.com/feed.xml" };
+    });
+
+    expect(feedsIpc).toHaveProperty("updateFeed");
+    await feedsIpc.updateFeed(42, "OpenAI");
+
+    expect(calls).toEqual([
+      ["feeds_update", { input: { feedId: 42, title: "OpenAI" } }],
+    ]);
   });
 
   test("normalizes unknown command failures", async () => {

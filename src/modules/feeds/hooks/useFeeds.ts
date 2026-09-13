@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { IpcError } from "../../../lib/ipc/errors";
-import { addFeed, listFeeds, removeFeed } from "../ipc";
+import { addFeed, listFeeds, removeFeed, updateFeed } from "../ipc";
 import type { FeedSummary } from "../types";
 
 export function useFeeds() {
@@ -36,7 +36,17 @@ export function useFeeds() {
     setFeeds((current) => current.filter((feed) => feed.id !== feedId));
   }, []);
 
-  return { feeds, loading, error, refresh, create, remove };
+  const rename = useCallback(async (feedId: number, title: string) => {
+    const feed = await updateFeed(feedId, title);
+    setFeeds((current) =>
+      current
+        .map((item) => (item.id === feedId ? feed : item))
+        .sort((a, b) => a.title.localeCompare(b.title)),
+    );
+    return feed;
+  }, []);
+
+  return { feeds, loading, error, refresh, create, rename, remove };
 }
 
 function readError(cause: unknown): string {

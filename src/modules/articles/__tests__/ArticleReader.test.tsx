@@ -1,8 +1,17 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ArticleReader } from "../components/ArticleReader";
 import type { ArticleSummary } from "../types";
+
+const openUrl = vi.hoisted(() => vi.fn());
+
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
+
+beforeEach(() => {
+  openUrl.mockReset();
+});
 
 function articleWithContent(content: string): ArticleSummary {
   return {
@@ -50,5 +59,68 @@ describe("ArticleReader", () => {
     expect(screen.getByRole("img", { name: "Preview" })).not.toHaveAttribute("onerror");
     expect(screen.getByText("Unsafe link").closest("a")).not.toHaveAttribute("href");
     expect(document.querySelector("script")).not.toBeInTheDocument();
+  });
+
+  test("opens http article links in the system browser when enabled", async () => {
+    render(
+      <ArticleReader
+        article={articleWithContent('<p><a href="https://example.com/read">Read more</a></p>')}
+        onReadChange={vi.fn()}
+        onStarChange={vi.fn()}
+        openLinksInBrowser
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("link", { name: "Read more" }));
+
+    expect(openUrl).toHaveBeenCalledWith("https://example.com/read");
+  });
+
+  test("resolves relative links against the article URL", async () => {
+    render(
+      <ArticleReader
+        article={articleWithContent('<p><a href="../read">Read more</a></p>')}
+        onReadChange={vi.fn()}
+        onStarChange={vi.fn()}
+        openLinksInBrowser
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("link", { name: "Read more" }));
+
+    expect(openUrl).toHaveBeenCalledWith("https://example.com/read");
+  });
+
+  test("does not send non-http links to the system opener", async () => {
+    render(
+      <ArticleReader
+        article={articleWithContent('<p><a href="mailto:reader@example.com">Email</a></p>')}
+        onReadChange={vi.fn()}
+        onStarChange={vi.fn()}
+        openLinksInBrowser
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Email" });
+    link.addEventListener("click", (event) => event.preventDefault());
+    await userEvent.click(link);
+
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  test("shows an error when the system opener rejects the link", async () => {
+    openUrl.mockRejectedValueOnce(new Error("opener unavailable"));
+    render(
+      <ArticleReader
+        article={articleWithContent('<p><a href="https://example.com/read">Read more</a></p>')}
+        onReadChange={vi.fn()}
+        onStarChange={vi.fn()}
+        openLinksInBrowser
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("link", { name: "Read more" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("无法在外部浏览器打开链接");
   });
 });

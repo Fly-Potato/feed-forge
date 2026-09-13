@@ -19,6 +19,16 @@ export async function addFeed(url: string): Promise<FeedSummary> {
   }
 }
 
+export async function updateFeed(feedId: number, title: string): Promise<FeedSummary> {
+  try {
+    return await invoke<FeedSummary>("feeds_update", {
+      input: { feedId, title },
+    });
+  } catch (error) {
+    throw normalizeIpcError(error);
+  }
+}
+
 export async function removeFeed(feedId: number): Promise<{ feedId: number }> {
   try {
     return await invoke<{ feedId: number }>("feeds_remove", {
