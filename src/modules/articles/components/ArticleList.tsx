@@ -5,7 +5,7 @@ interface ArticleListProps {
   filter: ArticleFilter;
   selectedArticleId: number | undefined;
   onFilterChange: (filter: ArticleFilter) => void;
-  onSelect: (article: ArticleSummary) => void;
+  onSelect: (articleId: number) => void;
 }
 
 const filters: Array<{ value: ArticleFilter; label: string }> = [
@@ -58,7 +58,7 @@ export function ArticleList({
                     ? "bg-muted"
                     : "hover:bg-muted/60"
                 }`}
-                onClick={() => onSelect(article)}
+                onClick={() => onSelect(article.id)}
               >
                 <span className={`block ${article.isRead ? "font-normal" : "font-semibold"}`}>
                   {article.title}

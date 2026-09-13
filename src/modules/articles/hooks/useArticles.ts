@@ -1,56 +1,41 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { IpcError } from "../../../lib/ipc/errors";
 import { listArticles, markArticleRead, toggleArticleStar } from "../ipc";
-import type { ArticleFilter, ArticlePage, ArticleSummary } from "../types";
+import { articleKeys } from "../keys";
+import type { ArticleFilter } from "../types";
 
 export function useArticles(feedId: number | undefined, filter: ArticleFilter) {
-  const [page, setPage] = useState<ArticlePage>({ items: [], total: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    if (feedId === undefined) {
-      setPage({ items: [], total: 0 });
-      setError(null);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      setPage(await listArticles({ feedId, filter, limit: 100, offset: 0 }));
-      setError(null);
-    } catch (cause) {
-      setError(readError(cause));
-    } finally {
-      setLoading(false);
-    }
-  }, [feedId, filter]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const updateArticle = useCallback((article: ArticleSummary) => {
-    setPage((current) => ({
-      ...current,
-      items: current.items.map((item) => (item.id === article.id ? article : item)),
-    }));
-  }, []);
-
-  const setRead = useCallback(async (articleId: number, isRead: boolean) => {
-    updateArticle(await markArticleRead(articleId, isRead));
-  }, [updateArticle]);
-
-  const setStarred = useCallback(async (articleId: number, isStarred: boolean) => {
-    updateArticle(await toggleArticleStar(articleId, isStarred));
-  }, [updateArticle]);
-
-  return { ...page, loading, error, refresh, setRead, setStarred };
+  const queryClient = useQueryClient();
+  const key = articleKeys.list(feedId, filter);
+  const list = useQuery({
+    queryKey: key,
+    queryFn: () => listArticles({ feedId, filter, limit: 100, offset: 0 }),
+    enabled: feedId !== undefined,
+  });
+  const invalidate = (originFeedId: number | undefined) => {
+    if (originFeedId !== undefined) void queryClient.invalidateQueries({ queryKey: articleKeys.feed(originFeedId) });
+  };
+  const read = useMutation({
+    mutationFn: ({ articleId, isRead }: { feedId: number | undefined; articleId: number; isRead: boolean }) => markArticleRead(articleId, isRead),
+    onSettled: (_data, _error, variables) => invalidate(variables.feedId),
+  });
+  const star = useMutation({
+    mutationFn: ({ articleId, isStarred }: { feedId: number | undefined; articleId: number; isStarred: boolean }) => toggleArticleStar(articleId, isStarred),
+    onSettled: (_data, _error, variables) => invalidate(variables.feedId),
+  });
+  return {
+    items: list.data?.items ?? [], total: list.data?.total ?? 0,
+    loading: feedId !== undefined && list.isPending,
+    error: readError(list.error), status: list.status,
+    refresh: () => queryClient.invalidateQueries({ queryKey: key }),
+    setRead: (articleId: number, isRead: boolean) => read.mutateAsync({ feedId, articleId, isRead }),
+    setStarred: (articleId: number, isStarred: boolean) => star.mutateAsync({ feedId, articleId, isStarred }),
+  };
 }
 
-function readError(cause: unknown): string {
+function readError(cause: unknown): string | null {
+  if (!cause) return null;
   if (cause instanceof IpcError) {
     return cause.message;
   }

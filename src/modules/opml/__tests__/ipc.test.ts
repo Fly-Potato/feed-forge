@@ -25,4 +25,19 @@ describe("OPML IPC", () => {
     await expect(exportOpml()).resolves.toBe("<opml />");
     expect(calls).toEqual([["opml_export", { input: {} }]]);
   });
+  test("rejects negative imported counts", async () => {
+    mockIPC((command) => {
+      if (command !== "opml_import") throw new Error(`Unexpected IPC command: ${command}`);
+      return { imported: -1, skipped: 0 };
+    });
+    await expect(importOpml("<opml />")).rejects.toMatchObject({ code: "invalid_response" });
+  });
+
+  test("rejects a non-string OPML export", async () => {
+    mockIPC((command) => {
+      if (command !== "opml_export") throw new Error(`Unexpected IPC command: ${command}`);
+      return { xml: "<opml />" };
+    });
+    await expect(exportOpml()).rejects.toMatchObject({ code: "invalid_response" });
+  });
 });

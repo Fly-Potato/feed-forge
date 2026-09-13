@@ -42,7 +42,6 @@ interface SettingsDialogProps {
   onAddFeed: (url: string) => Promise<unknown>;
   onRenameFeed: (feedId: number, title: string) => Promise<unknown>;
   onRemoveFeed: (feedId: number) => Promise<unknown>;
-  onImported: () => Promise<void>;
   settings: Settings | undefined;
   settingsLoading: boolean;
   settingsError: string | null;
@@ -59,7 +58,6 @@ export function SettingsDialog({
   onAddFeed,
   onRenameFeed,
   onRemoveFeed,
-  onImported,
   settings,
   settingsLoading,
   settingsError,
@@ -221,7 +219,7 @@ export function SettingsDialog({
           </TabsContent>
 
           <TabsContent value="data" className="min-h-0 overflow-y-auto py-4">
-            <OpmlTools onImported={onImported} onBusyChange={setOpmlBusy} />
+            <OpmlTools onBusyChange={setOpmlBusy} />
           </TabsContent>
         </Tabs>
 

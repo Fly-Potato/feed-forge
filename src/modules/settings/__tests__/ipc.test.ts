@@ -34,4 +34,11 @@ describe("settings IPC facade", () => {
 
     expect(calls).toEqual([["settings_update", { input: settings }]]);
   });
+  test("rejects an unknown theme from settings_get", async () => {
+    mockIPC((command) => {
+      if (command !== "settings_get") throw new Error(`Unexpected IPC command: ${command}`);
+      return { ...settings, theme: "unknown" };
+    });
+    await expect(getSettings()).rejects.toMatchObject({ code: "invalid_response", retryable: false });
+  });
 });

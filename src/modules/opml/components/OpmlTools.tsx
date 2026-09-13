@@ -3,14 +3,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { exportOpml, importOpml } from "../ipc";
+import { useOpml } from "../hooks/useOpml";
 
 interface OpmlToolsProps {
-  onImported: () => Promise<void>;
   onBusyChange?: (busy: boolean) => void;
 }
 
-export function OpmlTools({ onImported, onBusyChange }: OpmlToolsProps) {
+export function OpmlTools({ onBusyChange }: OpmlToolsProps) {
+  const { importContent, exportContent } = useOpml();
   const [content, setContent] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,8 +23,7 @@ export function OpmlTools({ onImported, onBusyChange }: OpmlToolsProps) {
     setBusy(true);
     onBusyChange?.(true);
     try {
-      const result = await importOpml(content);
-      await onImported();
+      const result = await importContent(content);
       setMessage(`已导入 ${result.imported} 个订阅源，跳过 ${result.skipped} 个。`);
       setContent("");
     } catch (cause) {
@@ -39,7 +38,7 @@ export function OpmlTools({ onImported, onBusyChange }: OpmlToolsProps) {
     setBusy(true);
     onBusyChange?.(true);
     try {
-      const opml = await exportOpml();
+      const opml = await exportContent();
       const blob = new Blob([opml], { type: "text/xml" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");

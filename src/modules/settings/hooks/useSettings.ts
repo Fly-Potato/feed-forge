@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { IpcError } from "../../../lib/ipc/errors";
 import { getSettings, updateSettings } from "../ipc";
+import { settingsKeys } from "../keys";
 import type { Settings } from "../types";
 
 function getErrorMessage(cause: unknown, fallback: string) {
@@ -8,32 +11,9 @@ function getErrorMessage(cause: unknown, fallback: string) {
 }
 
 export function useSettings() {
-  const [settings, setSettings] = useState<Settings>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      setSettings(undefined);
-      setLoading(true);
-      setError(null);
-      try {
-        const loaded = await getSettings();
-        if (active) setSettings(loaded);
-      } catch (cause) {
-        if (active) setError(getErrorMessage(cause, "无法加载设置。"));
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, []);
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: settingsKeys.all, queryFn: getSettings });
+  const settings = query.data;
 
   useEffect(() => {
     if (!settings) return;
@@ -51,14 +31,19 @@ export function useSettings() {
 
     media.addEventListener("change", applyTheme);
     return () => media.removeEventListener("change", applyTheme);
-  }, [settings]);
+  }, [settings?.theme]);
 
-  const save = useCallback(async (draft: Settings) => {
-    const saved = await updateSettings(draft);
-    setSettings(saved);
-    setError(null);
-    return saved;
-  }, []);
+  const update = useMutation({
+    mutationFn: updateSettings,
+    onSuccess: (saved) => { queryClient.setQueryData(settingsKeys.all, saved); },
+    onSettled: (_data, error) => {
+      if (error instanceof IpcError && error.code === "invalid_response")
+        void queryClient.invalidateQueries({ queryKey: settingsKeys.all });
+    },
+  });
 
-  return { settings, loading, error, save };
+  return {
+    settings, loading: query.isPending, error: query.error ? getErrorMessage(query.error, "无法加载设置。") : null,
+    save: (draft: Settings) => update.mutateAsync(draft),
+  };
 }

@@ -1,9 +1,5 @@
-export interface FeedSummary {
-  id: number;
-  title: string;
-  url: string;
-  siteUrl: string | null;
-  description: string | null;
-  lastSyncedAt: string | null;
-  syncError: string | null;
-}
+import type { z } from "zod";
+
+import type { feedSummarySchema } from "./schema";
+
+export type FeedSummary = z.infer<typeof feedSummarySchema>;

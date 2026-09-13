@@ -1,55 +1,49 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { IpcError } from "../../../lib/ipc/errors";
+import { articleKeys } from "../../articles/keys";
 import { addFeed, listFeeds, removeFeed, updateFeed } from "../ipc";
+import { feedKeys } from "../keys";
 import type { FeedSummary } from "../types";
 
 export function useFeeds() {
-  const [feeds, setFeeds] = useState<FeedSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const list = useQuery({ queryKey: feedKeys.list, queryFn: listFeeds });
+  const invalidate = () => { void queryClient.invalidateQueries({ queryKey: feedKeys.all }); };
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      setFeeds(await listFeeds());
-      setError(null);
-    } catch (cause) {
-      setError(readError(cause));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const add = useMutation({
+    mutationFn: addFeed,
+    onSuccess: (feed) => queryClient.setQueryData<FeedSummary[]>(feedKeys.list, (current) =>
+      current ? [...current, feed].sort((a, b) => a.title.localeCompare(b.title)) : current),
+    onSettled: invalidate,
+  });
+  const update = useMutation({
+    mutationFn: ({ feedId, title }: { feedId: number; title: string }) => updateFeed(feedId, title),
+    onSuccess: (feed) => queryClient.setQueryData<FeedSummary[]>(feedKeys.list, (current) =>
+      current?.map((item) => item.id === feed.id ? feed : item)
+        .sort((a, b) => a.title.localeCompare(b.title))),
+    onSettled: invalidate,
+  });
+  const deletion = useMutation({
+    mutationFn: removeFeed,
+    onSuccess: (_, feedId) => {
+      queryClient.setQueryData<FeedSummary[]>(feedKeys.list, (current) => current?.filter((feed) => feed.id !== feedId));
+      queryClient.removeQueries({ queryKey: articleKeys.feed(feedId) });
+    },
+    onSettled: invalidate,
+  });
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const create = useCallback(async (url: string) => {
-    const feed = await addFeed(url);
-    setFeeds((current) => [...current, feed].sort((a, b) => a.title.localeCompare(b.title)));
-    return feed;
-  }, []);
-
-  const remove = useCallback(async (feedId: number) => {
-    await removeFeed(feedId);
-    setFeeds((current) => current.filter((feed) => feed.id !== feedId));
-  }, []);
-
-  const rename = useCallback(async (feedId: number, title: string) => {
-    const feed = await updateFeed(feedId, title);
-    setFeeds((current) =>
-      current
-        .map((item) => (item.id === feedId ? feed : item))
-        .sort((a, b) => a.title.localeCompare(b.title)),
-    );
-    return feed;
-  }, []);
-
-  return { feeds, loading, error, refresh, create, rename, remove };
+  return {
+    feeds: list.data ?? [], loading: list.isPending, error: readError(list.error), status: list.status,
+    refresh: () => queryClient.invalidateQueries({ queryKey: feedKeys.list }),
+    create: (url: string) => add.mutateAsync(url),
+    rename: (feedId: number, title: string) => update.mutateAsync({ feedId, title }),
+    remove: (feedId: number) => deletion.mutateAsync(feedId).then(() => {}),
+  };
 }
 
-function readError(cause: unknown): string {
+function readError(cause: unknown): string | null {
+  if (!cause) return null;
   if (cause instanceof IpcError) {
     return cause.message;
   }

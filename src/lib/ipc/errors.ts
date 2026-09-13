@@ -32,5 +32,5 @@ function isIpcErrorPayload(error: unknown): error is IpcErrorShape {
     return false;
   }
   const value = error as Partial<IpcErrorShape>;
-  return typeof value.code === "string" && typeof value.message === "string";
+  return typeof value.code === "string" && typeof value.message === "string" && typeof value.retryable === "boolean";
 }

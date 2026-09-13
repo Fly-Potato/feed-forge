@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import App from "./App";
+import { useReaderStore } from "./modules/reader/store";
 
 const windowControls = vi.hoisted(() => ({
   close: vi.fn(),
@@ -41,6 +42,7 @@ function mockIPC(handler: Parameters<typeof tauriMockIPC>[0]) {
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useReaderStore.setState({ selectedFeedId: undefined, selectedArticleId: undefined, filter: "all" });
     document.documentElement.classList.remove("dark");
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -243,6 +245,26 @@ describe("App", () => {
     expect(screen.getByRole("textbox", { name: "OPML 内容" })).toBeInTheDocument();
   });
 
+  test("导入 OPML 后展示成功提示并刷新订阅源", async () => {
+    const feed = { id: 7, title: "新订阅", url: "https://example.com/feed.xml", siteUrl: null,
+      description: null, lastSyncedAt: null, syncError: null };
+    let imported = false;
+    mockIPC((command, payload) => {
+      if (command === "feeds_list") return imported ? [feed] : [];
+      if (command === "settings_get") return defaultSettings;
+      if (command === "opml_import") { expect(payload).toEqual({ input: { content: "<opml />" } }); imported = true; return { imported: 1, skipped: 0 }; }
+      throw new Error(`Unexpected IPC command: ${command}`);
+    });
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await userEvent.click(await screen.findByRole("tab", { name: "导入与导出" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "OPML 内容" }), "<opml />");
+    await userEvent.click(screen.getByRole("button", { name: "导入" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("已导入 1 个订阅源，跳过 0 个");
+    await userEvent.click(screen.getByRole("button", { name: "关闭" }));
+    await waitFor(() => expect(screen.getByRole("list", { name: "订阅源" })).toHaveTextContent("新订阅"));
+  });
+
   test("应用已保存的主题并安排自动刷新", async () => {
     const interval = vi.spyOn(window, "setInterval");
     const clearInterval = vi.spyOn(window, "clearInterval");
@@ -399,9 +421,10 @@ describe("App", () => {
       lastSyncedAt: null,
       syncError: null,
     };
+    let savedFeed: typeof feed | undefined = feed;
     mockIPC((command, payload) => {
       calls.push([command, payload]);
-      if (command === "feeds_list") return [feed];
+      if (command === "feeds_list") return savedFeed ? [savedFeed] : [];
       if (command === "settings_get") {
         return {
           refreshIntervalMinutes: 60,
@@ -409,8 +432,8 @@ describe("App", () => {
           openLinksInBrowser: true,
         };
       }
-      if (command === "feeds_update") return { ...feed, title: "OpenAI 新闻" };
-      if (command === "feeds_remove") return { feedId: feed.id };
+      if (command === "feeds_update") { savedFeed = { ...feed, title: "OpenAI 新闻" }; return savedFeed; }
+      if (command === "feeds_remove") { savedFeed = undefined; return { feedId: feed.id }; }
       throw new Error(`Unexpected IPC command: ${command}`);
     });
 

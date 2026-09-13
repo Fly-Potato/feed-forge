@@ -1,10 +1,6 @@
-export interface SyncAccepted {
-  jobId: number;
-}
+import type { z } from "zod";
 
-export type SyncEvent =
-  | { event: "started"; data: { jobId: number; total: number } }
-  | { event: "progress"; data: { jobId: number; processed: number; total: number } }
-  | { event: "completed"; data: { jobId: number; processed: number } }
-  | { event: "failed"; data: { jobId: number; message: string } }
-  | { event: "canceled"; data: { jobId: number; processed: number } };
+import type { syncAcceptedSchema, syncEventSchema } from "./schema";
+
+export type SyncAccepted = z.infer<typeof syncAcceptedSchema>;
+export type SyncEvent = z.infer<typeof syncEventSchema>;
