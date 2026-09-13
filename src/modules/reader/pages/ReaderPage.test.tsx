@@ -134,3 +134,23 @@ test("removes the content header and keeps scoped refresh and settings actions r
   expect(screen.getByRole("button", { name: "设置" })).toBeInTheDocument();
   client.clear();
 });
+
+test("opens settings in a larger dialog while preserving viewport margins", async () => {
+  const client = createAppQueryClient();
+  mockIPC((command) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: "设置" }));
+
+  const dialog = await screen.findByRole("dialog", { name: "设置" });
+  expect(dialog).toHaveClass("h-[min(700px,calc(100vh-2rem))]");
+  expect(dialog.style.maxWidth).toContain("1080px");
+  expect(dialog.style.maxWidth).toContain("2rem");
+  client.clear();
+});

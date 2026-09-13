@@ -126,8 +126,8 @@ export function SettingsDialog({
       <DialogContent
         showCloseButton={false}
         aria-busy={pending}
-        className="h-[min(520px,calc(100vh-3rem))] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden p-5"
-        style={{ maxWidth: "min(720px, calc(100vw - 2rem))" }}
+        className="h-[min(700px,calc(100vh-2rem))] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden p-5"
+        style={{ maxWidth: "min(1080px, calc(100vw - 2rem))" }}
       >
         <DialogHeader>
           <DialogTitle>设置</DialogTitle>
