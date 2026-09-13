@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   PanelLeftClose,
   PanelLeftOpen,
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { ArticleList } from "@/modules/articles/components/ArticleList";
 import { ArticleReader } from "@/modules/articles/components/ArticleReader";
 import { useArticles } from "@/modules/articles/hooks/useArticles";
+import type { ArticleFilter, ArticleSummary } from "@/modules/articles/types";
 import { FeedList } from "@/modules/feeds/components/FeedList";
 import { useFeeds } from "@/modules/feeds/hooks/useFeeds";
 import { SettingsDialog } from "@/modules/settings/components/SettingsDialog";
@@ -66,7 +67,15 @@ export function ReaderPage() {
     setRead,
     setStarred,
   } = useArticles(selectedFeedId, filter);
-  const selectedArticle = items.find((article) => article.id === selectedArticleId);
+  const [retainedArticle, setRetainedArticle] = useState<ArticleSummary | undefined>();
+  const selectionGeneration = useRef(0);
+  const pendingReads = useRef(new Map<number, {
+    desired: boolean;
+    result: Promise<ArticleSummary>;
+    settled: Promise<void>;
+  }>());
+  const selectedArticle = items.find((article) => article.id === selectedArticleId)
+    ?? (retainedArticle?.id === selectedArticleId ? retainedArticle : undefined);
   const [articleActionError, setArticleActionError] = useState<string | null>(null);
   const sync = useSync();
   const settingsState = useSettings();
@@ -79,13 +88,29 @@ export function ReaderPage() {
   useEffect(() => setArticlesCollapsed(articlesAutoCollapsed), [articlesAutoCollapsed]);
 
   useEffect(() => {
-    if (feedsStatus === "success") clearMissingFeed(feeds.map((feed) => feed.id));
-  }, [feedsStatus, feeds, clearMissingFeed]);
+    if (feedsStatus !== "success") return;
+    const feedIds = feeds.map((feed) => feed.id);
+    if (selectedFeedId !== undefined && !feedIds.includes(selectedFeedId)) {
+      selectionGeneration.current++;
+      setRetainedArticle(undefined);
+    }
+    clearMissingFeed(feedIds);
+  }, [feedsStatus, feeds, selectedFeedId, clearMissingFeed]);
 
   useEffect(() => {
-    if (selectedFeedId !== undefined && articlesStatus === "success")
-      clearMissingArticle(items.map((article) => article.id));
-  }, [articlesStatus, selectedFeedId, items, clearMissingArticle]);
+    const retainsFilteredArticle = filter !== "all" && retainedArticle?.id === selectedArticleId;
+    if (selectedFeedId === undefined || articlesStatus !== "success" || retainsFilteredArticle) return;
+    const articleIds = items.map((article) => article.id);
+    if (selectedArticleId !== undefined && !articleIds.includes(selectedArticleId)) {
+      selectionGeneration.current++;
+      setRetainedArticle(undefined);
+    }
+    clearMissingArticle(articleIds);
+  }, [articlesStatus, selectedFeedId, selectedArticleId, filter, items, retainedArticle, clearMissingArticle]);
+
+  useEffect(() => {
+    if (selectedArticleId === undefined) setRetainedArticle(undefined);
+  }, [selectedArticleId]);
 
   useEffect(() => { setArticleActionError(null); }, [selectedFeedId, selectedArticleId, filter]);
 
@@ -100,13 +125,75 @@ export function ReaderPage() {
 
   async function removeSelected(feedId: number) {
     await remove(feedId);
+    if (selectedFeedId === feedId) {
+      selectionGeneration.current++;
+      setRetainedArticle(undefined);
+    }
     clearFeedIfSelected(feedId);
   }
 
-  async function changeArticle(action: () => Promise<unknown>) {
-    setArticleActionError(null);
-    try { await action(); }
-    catch (cause) { setArticleActionError(cause instanceof Error ? cause.message : "无法更新文章。"); }
+  async function changeArticle(
+    articleId: number,
+    action: () => Promise<ArticleSummary>,
+    generation = selectionGeneration.current,
+  ) {
+    if (generation === selectionGeneration.current) setArticleActionError(null);
+    try {
+      const updatedArticle = await action();
+      if (
+        generation !== selectionGeneration.current
+        || useReaderStore.getState().selectedArticleId !== articleId
+      ) return;
+      setRetainedArticle((current) => current?.id === articleId ? updatedArticle : current);
+    }
+    catch (cause) {
+      if (
+        generation === selectionGeneration.current
+        && useReaderStore.getState().selectedArticleId === articleId
+      ) setArticleActionError(cause instanceof Error ? cause.message : "无法更新文章。");
+    }
+  }
+
+  function queueReadChange(articleId: number, isRead: boolean) {
+    const previous = pendingReads.current.get(articleId)?.settled ?? Promise.resolve();
+    const result = previous.then(() => setRead(articleId, isRead));
+    const settled = result.then(() => undefined, () => undefined);
+    const pending = { desired: isRead, result, settled };
+    pendingReads.current.set(articleId, pending);
+    void settled.then(() => {
+      if (pendingReads.current.get(articleId) === pending) pendingReads.current.delete(articleId);
+    });
+    return result;
+  }
+
+  function openArticle(articleId: number) {
+    const article = items.find((item) => item.id === articleId);
+    if (!article) return;
+    const isNewSelection = selectedArticleId !== articleId;
+    if (isNewSelection) selectionGeneration.current++;
+    const generation = selectionGeneration.current;
+    selectArticle(articleId);
+    setRetainedArticle(article);
+    if (!isNewSelection) return;
+
+    const pending = pendingReads.current.get(articleId);
+    if (pending?.desired === true) {
+      void changeArticle(articleId, () => pending.result, generation);
+    } else if (!(pending?.desired ?? article.isRead)) {
+      void changeArticle(articleId, () => queueReadChange(articleId, true), generation);
+    }
+  }
+
+  function selectReaderFeed(feedId: number) {
+    selectionGeneration.current++;
+    setRetainedArticle(undefined);
+    selectFeed(feedId);
+  }
+
+  function changeFilter(nextFilter: ArticleFilter) {
+    selectionGeneration.current++;
+    setRetainedArticle(undefined);
+    setFilter(nextFilter);
   }
 
   const showCustomTitleBar =
@@ -201,7 +288,7 @@ export function ReaderPage() {
                   groups={groupsForDisplay}
                   feeds={feeds}
                   selectedFeedId={selectedFeedId}
-                  onSelect={selectFeed}
+                  onSelect={selectReaderFeed}
                 />
               </div>
             ) : null}
@@ -256,8 +343,8 @@ export function ReaderPage() {
                 error={articlesError}
                 refreshing={syncingCurrent}
                 refreshDisabled={sync.isRunning}
-                onFilterChange={setFilter}
-                onSelect={selectArticle}
+                onFilterChange={changeFilter}
+                onSelect={openArticle}
                 onRefresh={() => selectedFeedId !== undefined && void sync.start(selectedFeedId)}
                 onCollapse={() => setArticlesCollapsed(true)}
               />
@@ -267,8 +354,8 @@ export function ReaderPage() {
           <section className="flex min-h-[320px] flex-col bg-card">
             <ArticleReader
               article={selectedArticle}
-              onReadChange={(isRead) => selectedArticle && void changeArticle(() => setRead(selectedArticle.id, isRead))}
-              onStarChange={(isStarred) => selectedArticle && void changeArticle(() => setStarred(selectedArticle.id, isStarred))}
+              onReadChange={(isRead) => selectedArticle && void changeArticle(selectedArticle.id, () => queueReadChange(selectedArticle.id, isRead))}
+              onStarChange={(isStarred) => selectedArticle && void changeArticle(selectedArticle.id, () => setStarred(selectedArticle.id, isStarred))}
               openLinksInBrowser={settingsState.settings?.openLinksInBrowser}
             />
             {articleActionError ? <p className="p-4 text-sm text-destructive" role="alert">{articleActionError}</p> : null}

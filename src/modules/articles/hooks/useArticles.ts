@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IpcError } from "../../../lib/ipc/errors";
 import { listArticles, markArticleRead, toggleArticleStar } from "../ipc";
 import { articleKeys } from "../keys";
-import type { ArticleFilter } from "../types";
+import type { ArticleFilter, ArticlePage, ArticleSummary } from "../types";
 
 export function useArticles(feedId: number | undefined, filter: ArticleFilter) {
   const queryClient = useQueryClient();
@@ -16,12 +16,24 @@ export function useArticles(feedId: number | undefined, filter: ArticleFilter) {
   const invalidate = (originFeedId: number | undefined) => {
     if (originFeedId !== undefined) void queryClient.invalidateQueries({ queryKey: articleKeys.feed(originFeedId) });
   };
+  const updateCachedArticle = (originFeedId: number | undefined, article: ArticleSummary) => {
+    if (originFeedId === undefined) return;
+    queryClient.setQueriesData<ArticlePage>(
+      { queryKey: articleKeys.feed(originFeedId) },
+      (page) => page && ({
+        ...page,
+        items: page.items.map((item) => item.id === article.id ? article : item),
+      }),
+    );
+  };
   const read = useMutation({
     mutationFn: ({ articleId, isRead }: { feedId: number | undefined; articleId: number; isRead: boolean }) => markArticleRead(articleId, isRead),
+    onSuccess: (article, variables) => updateCachedArticle(variables.feedId, article),
     onSettled: (_data, _error, variables) => invalidate(variables.feedId),
   });
   const star = useMutation({
     mutationFn: ({ articleId, isStarred }: { feedId: number | undefined; articleId: number; isStarred: boolean }) => toggleArticleStar(articleId, isStarred),
+    onSuccess: (article, variables) => updateCachedArticle(variables.feedId, article),
     onSettled: (_data, _error, variables) => invalidate(variables.feedId),
   });
   return {
