@@ -11,13 +11,23 @@ export function useSync() {
   const queryClient = useQueryClient();
   const generationRef = useRef(0);
   const terminalGenerationRef = useRef(0);
+  const runningRef = useRef(false);
   const [event, setEvent] = useState<SyncEvent | null>(null);
   const [jobId, setJobId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [targetFeedId, setTargetFeedId] = useState<number | undefined>();
 
-  useEffect(() => () => { generationRef.current++; }, []);
+  useEffect(() => () => {
+    generationRef.current++;
+    runningRef.current = false;
+  }, []);
 
   const start = useCallback(async (feedId?: number) => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setIsRunning(true);
+    setTargetFeedId(feedId);
     const generation = ++generationRef.current;
     setEvent(null);
     setJobId(null);
@@ -31,6 +41,9 @@ export function useSync() {
       const terminal = next.event === "completed" || next.event === "failed" || next.event === "canceled";
       if (terminal) {
         terminalGenerationRef.current = generation;
+        runningRef.current = false;
+        setIsRunning(false);
+        setTargetFeedId(undefined);
         setError(null);
       }
       setEvent(next);
@@ -41,9 +54,15 @@ export function useSync() {
     };
     try {
       const accepted = await startSync(feedId, onEvent, onInvalidEvent);
-      if (generationRef.current === generation) setJobId(accepted.jobId);
+      if (generationRef.current === generation && terminalGenerationRef.current !== generation)
+        setJobId(accepted.jobId);
     } catch (cause) {
-      if (generationRef.current === generation) setError(cause instanceof IpcError ? cause.message : "无法开始同步。");
+      if (generationRef.current === generation) {
+        runningRef.current = false;
+        setIsRunning(false);
+        setTargetFeedId(undefined);
+        setError(cause instanceof IpcError ? cause.message : "无法开始同步。");
+      }
     }
   }, [queryClient]);
 
@@ -58,5 +77,5 @@ export function useSync() {
     }
   }, [jobId]);
 
-  return { event, jobId, error, start, cancel };
+  return { event, jobId, error, isRunning, targetFeedId, start, cancel };
 }

@@ -39,10 +39,10 @@ pub(crate) async fn test_pool() -> sqlx::SqlitePool {
 #[cfg(test)]
 mod tests {
     #[tokio::test]
-    async fn migration_creates_feed_article_and_settings_tables() {
+    async fn migration_creates_feed_group_article_and_settings_tables() {
         let pool = super::test_pool().await;
 
-        for table in ["feeds", "articles", "settings"] {
+        for table in ["feeds", "feed_groups", "articles", "settings"] {
             let exists: i64 = sqlx::query_scalar(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
             )
@@ -53,5 +53,40 @@ mod tests {
 
             assert_eq!(exists, 1, "expected table {table}");
         }
+
+        let has_group_id: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM pragma_table_info('feeds') WHERE name = 'group_id'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(has_group_id, 1);
+    }
+
+    #[tokio::test]
+    async fn deleting_feed_group_keeps_feed_and_clears_group_id() {
+        let pool = super::test_pool().await;
+
+        sqlx::query("INSERT INTO feed_groups (title, created_at) VALUES ('Tech', 'now')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO feeds (title, url, group_id, created_at) VALUES ('Feed', 'https://example.com/feed.xml', 1, 'now')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query("DELETE FROM feed_groups WHERE id = 1")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let group_id: Option<i64> = sqlx::query_scalar("SELECT group_id FROM feeds WHERE id = 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(group_id, None);
     }
 }

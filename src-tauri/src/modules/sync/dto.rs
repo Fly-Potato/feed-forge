@@ -47,7 +47,12 @@ impl SyncStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase", tag = "event", content = "data")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "event",
+    content = "data"
+)]
 pub enum SyncEvent {
     Started { job_id: u64, total: u32 },
     Progress { job_id: u64, processed: u32, total: u32 },

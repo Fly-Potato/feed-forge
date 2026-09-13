@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
+import {
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightOpen,
+  RefreshCw,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { AppTitleBar } from "@/components/common/AppTitleBar";
-import { FeedList } from "@/modules/feeds/components/FeedList";
-import { useFeeds } from "@/modules/feeds/hooks/useFeeds";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ArticleList } from "@/modules/articles/components/ArticleList";
 import { ArticleReader } from "@/modules/articles/components/ArticleReader";
 import { useArticles } from "@/modules/articles/hooks/useArticles";
-import { SyncProgress } from "@/modules/sync/components/SyncProgress";
-import { useSync } from "@/modules/sync/hooks/useSync";
+import { FeedList } from "@/modules/feeds/components/FeedList";
+import { useFeeds } from "@/modules/feeds/hooks/useFeeds";
 import { SettingsDialog } from "@/modules/settings/components/SettingsDialog";
 import { useSettings } from "@/modules/settings/hooks/useSettings";
+import { SyncProgress } from "@/modules/sync/components/SyncProgress";
+import { useSync } from "@/modules/sync/hooks/useSync";
+
 import { useReaderStore } from "../store";
 
 const FEEDS_COLLAPSE_BREAKPOINT = 900;
@@ -37,8 +44,28 @@ export function ReaderPage() {
   const clearFeedIfSelected = useReaderStore((state) => state.clearFeedIfSelected);
   const clearMissingFeed = useReaderStore((state) => state.clearMissingFeed);
   const clearMissingArticle = useReaderStore((state) => state.clearMissingArticle);
-  const { feeds, loading: feedsLoading, error: feedsError, status: feedsStatus, create, rename, remove } = useFeeds();
-  const { items, loading: articlesLoading, error: articlesError, status: articlesStatus, setRead, setStarred } = useArticles(selectedFeedId, filter);
+  const {
+    feeds,
+    groups,
+    loading: feedsLoading,
+    error: feedsError,
+    status: feedsStatus,
+    create,
+    rename,
+    remove,
+    move,
+    createGroup,
+    renameGroup,
+    removeGroup,
+  } = useFeeds();
+  const {
+    items,
+    loading: articlesLoading,
+    error: articlesError,
+    status: articlesStatus,
+    setRead,
+    setStarred,
+  } = useArticles(selectedFeedId, filter);
   const selectedArticle = items.find((article) => article.id === selectedArticleId);
   const [articleActionError, setArticleActionError] = useState<string | null>(null);
   const sync = useSync();
@@ -84,94 +111,157 @@ export function ReaderPage() {
 
   const showCustomTitleBar =
     !import.meta.env.TAURI_ENV_PLATFORM || import.meta.env.TAURI_ENV_PLATFORM === "windows";
+  const groupsForDisplay = groups ?? [];
+  const syncingAll = sync.isRunning && sync.targetFeedId === undefined;
+  const syncingCurrent = sync.isRunning && sync.targetFeedId === selectedFeedId && selectedFeedId !== undefined;
+
+  const syncAllButton = (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="同步全部订阅源"
+      title="同步全部订阅源"
+      aria-busy={syncingAll}
+      disabled={sync.isRunning}
+      onClick={() => void sync.start()}
+    >
+      <RefreshCw
+        aria-hidden="true"
+        data-icon="inline-start"
+        className={cn(syncingAll && "animate-spin motion-reduce:animate-none")}
+      />
+    </Button>
+  );
+
+  const settingsDialog = (
+    <SettingsDialog
+      feeds={feeds}
+      feedGroups={groupsForDisplay}
+      feedsLoading={feedsLoading}
+      feedsError={feedsError}
+      onAddFeed={create}
+      onRenameFeed={rename}
+      onRemoveFeed={removeSelected}
+      onCreateFeedGroup={createGroup}
+      onRenameFeedGroup={renameGroup}
+      onRemoveFeedGroup={removeGroup}
+      onMoveFeed={move}
+      settings={settingsState.settings}
+      settingsLoading={settingsState.loading}
+      settingsError={settingsState.error}
+      onSaveSettings={settingsState.save}
+    />
+  );
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {showCustomTitleBar ? <AppTitleBar /> : null}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-auto overflow-y-auto" role="region" aria-label="应用内容">
-        <header className="border-b border-border bg-card">
-          <div className="flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-6">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Feed Forge</h1>
-              <p className="text-sm text-muted-foreground">本地 RSS 阅读器</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <SyncProgress event={sync.event} error={sync.error} />
-              <Button variant="outline" onClick={() => void sync.start(selectedFeedId)}>刷新</Button>
-              <SettingsDialog
-                feeds={feeds}
-                feedsLoading={feedsLoading}
-                feedsError={feedsError}
-                onAddFeed={create}
-                onRenameFeed={rename}
-                onRemoveFeed={removeSelected}
-                settings={settingsState.settings}
-                settingsLoading={settingsState.loading}
-                settingsError={settingsState.error}
-                onSaveSettings={settingsState.save}
-              />
-            </div>
-          </div>
-        </header>
-
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden" role="region" aria-label="应用内容">
         <div
-          className="grid min-w-0 w-full flex-1 gap-0"
+          className="grid min-h-0 min-w-0 w-full flex-1 gap-0"
           role="group"
           aria-label="主布局"
           style={{
             gridTemplateColumns: `${feedsCollapsed ? "48px" : "280px"} ${articlesCollapsed ? "48px" : "minmax(280px, 380px)"} minmax(0, 1fr)`,
           }}
         >
-          <aside className={`border-border bg-card ${feedsCollapsed ? "flex items-start justify-center border-r p-2" : "border-r p-4"}`} aria-label="订阅源面板">
-            <div className={feedsCollapsed ? undefined : "mb-2 flex items-center justify-between gap-2"}>
-              {!feedsCollapsed ? <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">订阅源</h2> : null}
+          <aside
+            className={cn(
+              "flex min-h-0 flex-col border-r border-border bg-card",
+              feedsCollapsed ? "items-center p-2" : "p-3",
+            )}
+            aria-label="订阅源面板"
+          >
+            <div className={cn("flex shrink-0 gap-1", feedsCollapsed ? "flex-col items-center" : "items-center") }>
+              <h2 className={feedsCollapsed ? "sr-only" : "mr-auto text-sm font-semibold text-muted-foreground"}>订阅源</h2>
+              {syncAllButton}
               <Button
-                variant="ghost" size="icon-sm"
+                variant="ghost"
+                size="icon-sm"
                 aria-label={feedsCollapsed ? "展开订阅源栏" : "折叠订阅源栏"}
                 title={feedsCollapsed ? "展开订阅源栏" : "折叠订阅源栏"}
                 aria-expanded={!feedsCollapsed}
                 onClick={() => setFeedsCollapsed((collapsed) => !collapsed)}
               >
-                {feedsCollapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+                {feedsCollapsed
+                  ? <PanelLeftOpen aria-hidden="true" data-icon="inline-start" />
+                  : <PanelLeftClose aria-hidden="true" data-icon="inline-start" />}
               </Button>
             </div>
+
+            <div className={feedsCollapsed ? "sr-only" : "shrink-0 py-1"}>
+              <SyncProgress event={sync.event} error={sync.error} />
+            </div>
+
             {!feedsCollapsed ? (
-              <div>
+              <div className="min-h-0 flex-1 overflow-y-auto py-1">
                 {feedsLoading ? <span className="text-xs text-muted-foreground">加载中...</span> : null}
                 {feedsError ? <p className="mb-2 text-sm text-destructive" role="alert">{feedsError}</p> : null}
-                <FeedList feeds={feeds} selectedFeedId={selectedFeedId} onSelect={selectFeed} />
+                <FeedList
+                  groups={groupsForDisplay}
+                  feeds={feeds}
+                  selectedFeedId={selectedFeedId}
+                  onSelect={selectFeed}
+                />
               </div>
             ) : null}
+
+            <div className={cn("mt-auto shrink-0", !feedsCollapsed && "pt-2")}>
+              {settingsDialog}
+            </div>
           </aside>
 
-          <section className={`flex min-h-0 flex-col border-border bg-background ${articlesCollapsed ? "items-center border-r p-2" : "border-r"}`} aria-label="文章列表面板">
-            <div className={articlesCollapsed ? undefined : "flex shrink-0 justify-end border-b border-border px-2 py-1"}>
-              <Button
-                variant="ghost" size="icon-sm"
-                aria-label={articlesCollapsed ? "展开文章列表栏" : "折叠文章列表栏"}
-                title={articlesCollapsed ? "展开文章列表栏" : "折叠文章列表栏"}
-                aria-expanded={!articlesCollapsed}
-                onClick={() => setArticlesCollapsed((collapsed) => !collapsed)}
-              >
-                {articlesCollapsed ? <PanelRightOpen aria-hidden="true" /> : <PanelRightClose aria-hidden="true" />}
-              </Button>
-            </div>
-            {!articlesCollapsed ? (
-              <>
-                {selectedFeedId === undefined ? (
-                  <p className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">请选择订阅源以查看文章</p>
-                ) : articlesLoading ? (
-                  <p className="p-4 text-sm text-muted-foreground">正在加载文章...</p>
-                ) : articlesError ? (
-                  <p className="p-4 text-sm text-destructive" role="alert">{articlesError}</p>
-                ) : (
-                  <ArticleList
-                    articles={items} filter={filter} selectedArticleId={selectedArticleId}
-                    onFilterChange={setFilter} onSelect={selectArticle}
+          <section
+            className={cn(
+              "flex min-h-0 flex-col border-r border-border bg-background",
+              articlesCollapsed && "items-center p-2",
+            )}
+            aria-label="文章列表面板"
+          >
+            {articlesCollapsed ? (
+              <div className="flex flex-col items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="同步当前订阅源"
+                  title="同步当前订阅源"
+                  aria-busy={syncingCurrent}
+                  disabled={selectedFeedId === undefined || sync.isRunning}
+                  onClick={() => selectedFeedId !== undefined && void sync.start(selectedFeedId)}
+                >
+                  <RefreshCw
+                    aria-hidden="true"
+                    data-icon="inline-start"
+                    className={cn(syncingCurrent && "animate-spin motion-reduce:animate-none")}
                   />
-                )}
-              </>
-            ) : null}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="展开文章列表栏"
+                  title="展开文章列表栏"
+                  aria-expanded="false"
+                  onClick={() => setArticlesCollapsed(false)}
+                >
+                  <PanelRightOpen aria-hidden="true" data-icon="inline-start" />
+                </Button>
+              </div>
+            ) : (
+              <ArticleList
+                articles={items}
+                filter={filter}
+                selectedArticleId={selectedArticleId}
+                feedSelected={selectedFeedId !== undefined}
+                loading={articlesLoading}
+                error={articlesError}
+                refreshing={syncingCurrent}
+                refreshDisabled={sync.isRunning}
+                onFilterChange={setFilter}
+                onSelect={selectArticle}
+                onRefresh={() => selectedFeedId !== undefined && void sync.start(selectedFeedId)}
+                onCollapse={() => setArticlesCollapsed(true)}
+              />
+            )}
           </section>
 
           <section className="flex min-h-[320px] flex-col bg-card">

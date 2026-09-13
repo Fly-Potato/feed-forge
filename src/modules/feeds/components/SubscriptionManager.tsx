@@ -15,26 +15,37 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import type { FeedSummary } from "../types";
+import type { FeedGroup, FeedSummary } from "../types";
 import { AddFeedForm } from "./AddFeedForm";
+import { FeedGroupManager } from "./FeedGroupManager";
 
 interface SubscriptionManagerProps {
   feeds: FeedSummary[];
+  groups: FeedGroup[];
   loading: boolean;
   error: string | null;
-  onAdd: (url: string) => Promise<unknown>;
+  onAdd: (url: string, groupId: number | null) => Promise<unknown>;
   onRename: (feedId: number, title: string) => Promise<unknown>;
   onRemove: (feedId: number) => Promise<unknown>;
+  onCreateGroup: (title: string) => Promise<unknown>;
+  onRenameGroup: (groupId: number, title: string) => Promise<unknown>;
+  onRemoveGroup: (groupId: number) => Promise<unknown>;
+  onMoveFeed: (feedId: number, groupId: number | null) => Promise<unknown>;
   onBusyChange?: (busy: boolean) => void;
 }
 
 export function SubscriptionManager({
   feeds,
+  groups,
   loading,
   error,
   onAdd,
   onRename,
   onRemove,
+  onCreateGroup,
+  onRenameGroup,
+  onRemoveGroup,
+  onMoveFeed,
   onBusyChange,
 }: SubscriptionManagerProps) {
   const [editingId, setEditingId] = useState<number>();
@@ -43,13 +54,14 @@ export function SubscriptionManager({
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
+  const [groupBusy, setGroupBusy] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const renameButtonsRef = useRef(new Map<number, HTMLButtonElement>());
   const restoreFocusIdRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    onBusyChange?.(busy || addBusy);
-  }, [addBusy, busy, onBusyChange]);
+    onBusyChange?.(busy || addBusy || groupBusy);
+  }, [addBusy, busy, groupBusy, onBusyChange]);
 
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
@@ -114,7 +126,18 @@ export function SubscriptionManager({
 
   return (
     <div className="flex min-h-0 flex-col gap-5">
-      <AddFeedForm onAdd={onAdd} onBusyChange={setAddBusy} />
+      <AddFeedForm groups={groups} onAdd={onAdd} onBusyChange={setAddBusy} />
+
+      <FeedGroupManager
+        groups={groups}
+        feeds={feeds}
+        disabled={loading || busy || addBusy}
+        onCreate={onCreateGroup}
+        onRename={onRenameGroup}
+        onRemove={onRemoveGroup}
+        onMoveFeed={onMoveFeed}
+        onBusyChange={setGroupBusy}
+      />
 
       <div className="flex min-h-0 flex-col gap-2">
         <div className="flex items-center justify-between gap-3">

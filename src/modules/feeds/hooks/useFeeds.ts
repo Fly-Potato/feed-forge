@@ -2,17 +2,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { IpcError } from "../../../lib/ipc/errors";
 import { articleKeys } from "../../articles/keys";
-import { addFeed, listFeeds, removeFeed, updateFeed } from "../ipc";
+import {
+  addFeed,
+  createFeedGroup,
+  listFeedGroups,
+  listFeeds,
+  moveFeed,
+  removeFeed,
+  removeFeedGroup,
+  updateFeed,
+  updateFeedGroup,
+} from "../ipc";
 import { feedKeys } from "../keys";
 import type { FeedSummary } from "../types";
 
 export function useFeeds() {
   const queryClient = useQueryClient();
   const list = useQuery({ queryKey: feedKeys.list, queryFn: listFeeds });
+  const groups = useQuery({ queryKey: feedKeys.groups, queryFn: listFeedGroups });
   const invalidate = () => { void queryClient.invalidateQueries({ queryKey: feedKeys.all }); };
 
   const add = useMutation({
-    mutationFn: addFeed,
+    mutationFn: ({ url, groupId }: { url: string; groupId: number | null }) => addFeed(url, groupId),
     onSuccess: (feed) => queryClient.setQueryData<FeedSummary[]>(feedKeys.list, (current) =>
       current ? [...current, feed].sort((a, b) => a.title.localeCompare(b.title)) : current),
     onSettled: invalidate,
@@ -32,13 +43,33 @@ export function useFeeds() {
     },
     onSettled: invalidate,
   });
+  const move = useMutation({
+    mutationFn: ({ feedId, groupId }: { feedId: number; groupId: number | null }) => moveFeed(feedId, groupId),
+    onSuccess: (feed) => queryClient.setQueryData<FeedSummary[]>(feedKeys.list, (current) =>
+      current?.map((item) => item.id === feed.id ? feed : item)),
+    onSettled: invalidate,
+  });
+  const groupCreation = useMutation({ mutationFn: createFeedGroup, onSettled: invalidate });
+  const groupUpdate = useMutation({
+    mutationFn: ({ groupId, title }: { groupId: number; title: string }) => updateFeedGroup(groupId, title),
+    onSettled: invalidate,
+  });
+  const groupDeletion = useMutation({ mutationFn: removeFeedGroup, onSettled: invalidate });
 
   return {
-    feeds: list.data ?? [], loading: list.isPending, error: readError(list.error), status: list.status,
+    feeds: list.data ?? [],
+    groups: groups.data,
+    loading: list.isPending || groups.isPending,
+    error: readError(list.error ?? groups.error),
+    status: list.status,
     refresh: () => queryClient.invalidateQueries({ queryKey: feedKeys.list }),
-    create: (url: string) => add.mutateAsync(url),
+    create: (url: string, groupId: number | null) => add.mutateAsync({ url, groupId }),
     rename: (feedId: number, title: string) => update.mutateAsync({ feedId, title }),
     remove: (feedId: number) => deletion.mutateAsync(feedId).then(() => {}),
+    move: (feedId: number, groupId: number | null) => move.mutateAsync({ feedId, groupId }),
+    createGroup: (title: string) => groupCreation.mutateAsync(title),
+    renameGroup: (groupId: number, title: string) => groupUpdate.mutateAsync({ groupId, title }),
+    removeGroup: (groupId: number) => groupDeletion.mutateAsync(groupId).then(() => {}),
   };
 }
 

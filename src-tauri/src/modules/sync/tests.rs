@@ -1,4 +1,22 @@
+use super::dto::SyncEvent;
 use super::parser::parse_feed;
+
+#[test]
+fn serializes_channel_events_with_frontend_field_names() {
+    let event = serde_json::to_value(SyncEvent::Started {
+        job_id: 7,
+        total: 2,
+    })
+    .unwrap();
+
+    assert_eq!(
+        event,
+        serde_json::json!({
+            "event": "started",
+            "data": { "jobId": 7, "total": 2 }
+        })
+    );
+}
 
 #[test]
 fn parses_rss_item_with_guid_and_publish_date() {

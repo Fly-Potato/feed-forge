@@ -30,18 +30,23 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SubscriptionManager } from "@/modules/feeds/components/SubscriptionManager";
-import type { FeedSummary } from "@/modules/feeds/types";
+import type { FeedGroup, FeedSummary } from "@/modules/feeds/types";
 import { OpmlTools } from "@/modules/opml/components/OpmlTools";
 
 import type { Settings } from "../types";
 
 interface SettingsDialogProps {
   feeds: FeedSummary[];
+  feedGroups: FeedGroup[];
   feedsLoading: boolean;
   feedsError: string | null;
-  onAddFeed: (url: string) => Promise<unknown>;
+  onAddFeed: (url: string, groupId: number | null) => Promise<unknown>;
   onRenameFeed: (feedId: number, title: string) => Promise<unknown>;
   onRemoveFeed: (feedId: number) => Promise<unknown>;
+  onCreateFeedGroup: (title: string) => Promise<unknown>;
+  onRenameFeedGroup: (groupId: number, title: string) => Promise<unknown>;
+  onRemoveFeedGroup: (groupId: number) => Promise<unknown>;
+  onMoveFeed: (feedId: number, groupId: number | null) => Promise<unknown>;
   settings: Settings | undefined;
   settingsLoading: boolean;
   settingsError: string | null;
@@ -53,11 +58,16 @@ type SettingsTab = "general" | "subscriptions" | "data";
 
 export function SettingsDialog({
   feeds,
+  feedGroups,
   feedsLoading,
   feedsError,
   onAddFeed,
   onRenameFeed,
   onRemoveFeed,
+  onCreateFeedGroup,
+  onRenameFeedGroup,
+  onRemoveFeedGroup,
+  onMoveFeed,
   settings,
   settingsLoading,
   settingsError,
@@ -108,10 +118,10 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
-          <Button variant="outline" size="icon" aria-label="设置" title="设置" />
+          <Button variant="ghost" size="icon-sm" aria-label="设置" title="设置" />
         }
       >
-        <SettingsIcon aria-hidden="true" />
+        <SettingsIcon aria-hidden="true" data-icon="inline-start" />
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
@@ -209,11 +219,16 @@ export function SettingsDialog({
           <TabsContent value="subscriptions" className="min-h-0 overflow-y-auto py-4">
             <SubscriptionManager
               feeds={feeds}
+              groups={feedGroups}
               loading={feedsLoading}
               error={feedsError}
               onAdd={onAddFeed}
               onRename={onRenameFeed}
               onRemove={onRemoveFeed}
+              onCreateGroup={onCreateFeedGroup}
+              onRenameGroup={onRenameFeedGroup}
+              onRemoveGroup={onRemoveFeedGroup}
+              onMoveFeed={onMoveFeed}
               onBusyChange={setSubscriptionBusy}
             />
           </TabsContent>

@@ -9,7 +9,7 @@ import { useFeeds } from "../../feeds/hooks/useFeeds";
 import { useOpml } from "../hooks/useOpml";
 
 const feed = { id: 7, title: "旧订阅", url: "https://example.com/feed.xml", siteUrl: null,
-  description: null, lastSyncedAt: null, syncError: null };
+  description: null, lastSyncedAt: null, syncError: null, groupId: null };
 
 test("import refetches feeds even when the response is malformed", async () => {
   const client = createAppQueryClient();
@@ -17,6 +17,7 @@ test("import refetches feeds even when the response is malformed", async () => {
   let reads = 0;
   mockIPC((command) => {
     if (command === "feeds_list") { reads++; return reads === 1 ? [feed] : [feed, { ...feed, id: 8, title: "新订阅" }]; }
+    if (command === "feeds_groups_list") return [];
     if (command === "opml_import") return { imported: -1, skipped: 0 };
     throw new Error(`Unexpected IPC command: ${command}`);
   });

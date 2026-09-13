@@ -7,14 +7,26 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import type { FeedGroup } from "../types";
 
 interface AddFeedFormProps {
-  onAdd: (url: string) => Promise<unknown>;
+  groups: FeedGroup[];
+  onAdd: (url: string, groupId: number | null) => Promise<unknown>;
   onBusyChange?: (busy: boolean) => void;
 }
 
-export function AddFeedForm({ onAdd, onBusyChange }: AddFeedFormProps) {
+export function AddFeedForm({ groups, onAdd, onBusyChange }: AddFeedFormProps) {
   const [url, setUrl] = useState("");
+  const [groupId, setGroupId] = useState("ungrouped");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +42,7 @@ export function AddFeedForm({ onAdd, onBusyChange }: AddFeedFormProps) {
     onBusyChange?.(true);
     setError(null);
     try {
-      await onAdd(value);
+      await onAdd(value, groupId === "ungrouped" ? null : Number(groupId));
       setUrl("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "添加订阅源失败。");
@@ -63,6 +75,22 @@ export function AddFeedForm({ onAdd, onBusyChange }: AddFeedFormProps) {
             </InputGroupAddon>
           </InputGroup>
           <FieldError>{error}</FieldError>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="feed-group">添加到分组</FieldLabel>
+          <Select value={groupId} onValueChange={(value) => value && setGroupId(value)}>
+            <SelectTrigger id="feed-group" aria-label="添加到分组" className="w-full" disabled={submitting}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="ungrouped">未分组</SelectItem>
+                {groups.map((group) => (
+                  <SelectItem key={group.id} value={String(group.id)}>{group.title}</SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </Field>
       </FieldGroup>
     </form>

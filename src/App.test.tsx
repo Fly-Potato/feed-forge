@@ -28,11 +28,11 @@ function mockIPC(handler: Parameters<typeof tauriMockIPC>[0]) {
       return handler(command, payload);
     } catch (cause) {
       if (
-        command === "settings_get" &&
+        (command === "settings_get" || command === "feeds_groups_list") &&
         cause instanceof Error &&
         cause.message.startsWith("Unexpected IPC command:")
       ) {
-        return defaultSettings;
+        return command === "settings_get" ? defaultSettings : [];
       }
       throw cause;
     }
@@ -77,7 +77,7 @@ describe("App", () => {
     const contentScroller = screen.getByRole("region", { name: "应用内容" });
 
     expect(appShell).toHaveClass("h-screen", "overflow-hidden");
-    expect(contentScroller).toHaveClass("min-h-0", "overflow-x-auto", "overflow-y-auto");
+    expect(contentScroller).toHaveClass("min-h-0", "overflow-hidden");
     expect(contentScroller).not.toContainElement(titleBar);
   });
 
@@ -90,8 +90,7 @@ describe("App", () => {
     render(<App />);
 
     const mainGrid = screen.getByRole("group", { name: "主布局" });
-    const headerInner = screen.getByRole("heading", { name: "Feed Forge" }).parentElement?.parentElement;
-    expect(headerInner).not.toHaveClass("mx-auto", "max-w-[1600px]");
+    expect(screen.queryByRole("heading", { name: "Feed Forge" })).not.toBeInTheDocument();
     expect(mainGrid).not.toHaveClass("mx-auto", "max-w-[1600px]");
     expect(mainGrid).toHaveStyle({
       gridTemplateColumns: "280px minmax(280px, 380px) minmax(0, 1fr)",
@@ -209,10 +208,8 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(
-      screen.getByRole("heading", { name: "Feed Forge" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("本地 RSS 阅读器")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Feed Forge" })).not.toBeInTheDocument();
+    expect(screen.queryByText("本地 RSS 阅读器")).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "订阅源地址" })).not.toBeInTheDocument();
     expect(await screen.findByText("暂无订阅源")).toBeInTheDocument();
     expect(screen.getByText("请选择订阅源以查看文章")).toBeInTheDocument();
@@ -247,7 +244,7 @@ describe("App", () => {
 
   test("导入 OPML 后展示成功提示并刷新订阅源", async () => {
     const feed = { id: 7, title: "新订阅", url: "https://example.com/feed.xml", siteUrl: null,
-      description: null, lastSyncedAt: null, syncError: null };
+      description: null, lastSyncedAt: null, syncError: null, groupId: null };
     let imported = false;
     mockIPC((command, payload) => {
       if (command === "feeds_list") return imported ? [feed] : [];
@@ -262,7 +259,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "导入" }));
     expect(await screen.findByRole("status")).toHaveTextContent("已导入 1 个订阅源，跳过 0 个");
     await userEvent.click(screen.getByRole("button", { name: "关闭" }));
-    await waitFor(() => expect(screen.getByRole("list", { name: "订阅源" })).toHaveTextContent("新订阅"));
+    await waitFor(() => expect(screen.getByRole("tree", { name: "订阅源" })).toHaveTextContent("新订阅"));
   });
 
   test("应用已保存的主题并安排自动刷新", async () => {
@@ -380,6 +377,7 @@ describe("App", () => {
       description: null,
       lastSyncedAt: null,
       syncError: null,
+      groupId: null,
     }));
     await waitFor(() => expect(screen.getByRole("button", { name: "关闭" })).toBeEnabled());
   });
@@ -420,6 +418,7 @@ describe("App", () => {
       description: null,
       lastSyncedAt: null,
       syncError: null,
+      groupId: null,
     };
     let savedFeed: typeof feed | undefined = feed;
     mockIPC((command, payload) => {
@@ -472,6 +471,7 @@ describe("App", () => {
       description: null,
       lastSyncedAt: null,
       syncError: null,
+      groupId: null,
     };
     mockIPC((command) => {
       if (command === "feeds_list") return [feed];

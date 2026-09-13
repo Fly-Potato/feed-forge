@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
-import type { feedSummarySchema } from "./schema";
+import type { feedGroupSchema, feedSummarySchema } from "./schema";
 
 export type FeedSummary = z.infer<typeof feedSummarySchema>;
+export type FeedGroup = z.infer<typeof feedGroupSchema>;
