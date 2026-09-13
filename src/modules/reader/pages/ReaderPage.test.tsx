@@ -431,3 +431,31 @@ test("opens settings in a larger dialog while preserving viewport margins", asyn
   expect(dialog.style.maxWidth).toContain("2rem");
   client.clear();
 });
+
+test("shows localized labels for settings select values", async () => {
+  const client = createAppQueryClient();
+  mockIPC((command) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: "设置" }));
+
+  const refreshSelect = screen.getByRole("combobox", { name: "自动刷新间隔" });
+  const themeSelect = screen.getByRole("combobox", { name: "主题" });
+  expect(refreshSelect).toHaveTextContent("60 分钟");
+  expect(themeSelect).toHaveTextContent("跟随系统");
+
+  await userEvent.click(refreshSelect);
+  await userEvent.click(await screen.findByRole("option", { name: "每天" }));
+  expect(refreshSelect).toHaveTextContent("每天");
+
+  await userEvent.click(themeSelect);
+  await userEvent.click(await screen.findByRole("option", { name: "深色" }));
+  expect(themeSelect).toHaveTextContent("深色");
+  client.clear();
+});

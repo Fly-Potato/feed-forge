@@ -52,6 +52,10 @@ export function FeedGroupManager({
   const [pendingDelete, setPendingDelete] = useState<FeedGroup>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const groupItems = [
+    { value: "ungrouped", label: "未分组" },
+    ...groups.map((group) => ({ value: String(group.id), label: group.title })),
+  ];
 
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
@@ -192,6 +196,7 @@ export function FeedGroupManager({
                 {feed.title}
               </FieldLabel>
               <Select
+                items={groupItems}
                 value={feed.groupId === null ? "ungrouped" : String(feed.groupId)}
                 onValueChange={(value) => void moveFeed(feed.id, value)}
                 disabled={disabled || busy}
@@ -205,9 +210,8 @@ export function FeedGroupManager({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="ungrouped">未分组</SelectItem>
-                    {groups.map((group) => (
-                      <SelectItem key={group.id} value={String(group.id)}>{group.title}</SelectItem>
+                    {groupItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>

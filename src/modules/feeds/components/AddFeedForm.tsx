@@ -29,6 +29,10 @@ export function AddFeedForm({ groups, onAdd, onBusyChange }: AddFeedFormProps) {
   const [groupId, setGroupId] = useState("ungrouped");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const groupItems = [
+    { value: "ungrouped", label: "未分组" },
+    ...groups.map((group) => ({ value: String(group.id), label: group.title })),
+  ];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,15 +82,14 @@ export function AddFeedForm({ groups, onAdd, onBusyChange }: AddFeedFormProps) {
         </Field>
         <Field>
           <FieldLabel htmlFor="feed-group">添加到分组</FieldLabel>
-          <Select value={groupId} onValueChange={(value) => value && setGroupId(value)}>
+          <Select items={groupItems} value={groupId} onValueChange={(value) => value && setGroupId(value)}>
             <SelectTrigger id="feed-group" aria-label="添加到分组" className="w-full" disabled={submitting}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="ungrouped">未分组</SelectItem>
-                {groups.map((group) => (
-                  <SelectItem key={group.id} value={String(group.id)}>{group.title}</SelectItem>
+                {groupItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>

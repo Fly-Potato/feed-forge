@@ -53,7 +53,15 @@ interface SettingsDialogProps {
   onSaveSettings: (settings: Settings) => Promise<Settings>;
 }
 
-const refreshIntervals = [15, 30, 60, 120, 360, 1440];
+const refreshIntervalItems = [15, 30, 60, 120, 360, 1440].map((minutes) => ({
+  value: String(minutes),
+  label: minutes === 1440 ? "每天" : `${minutes} 分钟`,
+}));
+const themeItems: Array<{ value: Settings["theme"]; label: string }> = [
+  { value: "system", label: "跟随系统" },
+  { value: "light", label: "浅色" },
+  { value: "dark", label: "深色" },
+];
 type SettingsTab = "general" | "subscriptions" | "data";
 
 export function SettingsDialog({
@@ -160,6 +168,7 @@ export function SettingsDialog({
                       <FieldDescription>控制后台检查订阅源更新的频率。</FieldDescription>
                     </FieldContent>
                     <Select
+                      items={refreshIntervalItems}
                       value={String(draft.refreshIntervalMinutes)}
                       onValueChange={(value) => value && setDraft({ ...draft, refreshIntervalMinutes: Number(value) })}
                     >
@@ -168,9 +177,9 @@ export function SettingsDialog({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {refreshIntervals.map((minutes) => (
-                            <SelectItem key={minutes} value={String(minutes)}>
-                              {minutes === 1440 ? "每天" : `${minutes} 分钟`}
+                          {refreshIntervalItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
                             </SelectItem>
                           ))}
                         </SelectGroup>
@@ -184,6 +193,7 @@ export function SettingsDialog({
                       <FieldDescription>选择界面的明暗外观。</FieldDescription>
                     </FieldContent>
                     <Select
+                      items={themeItems}
                       value={draft.theme}
                       onValueChange={(value) => value && setDraft({ ...draft, theme: value as Settings["theme"] })}
                     >
@@ -192,9 +202,9 @@ export function SettingsDialog({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="system">跟随系统</SelectItem>
-                          <SelectItem value="light">浅色</SelectItem>
-                          <SelectItem value="dark">深色</SelectItem>
+                          {themeItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                          ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>

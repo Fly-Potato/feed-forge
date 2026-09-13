@@ -35,12 +35,21 @@ function props() {
 }
 
 describe("SubscriptionManager", () => {
+  test("shows group labels instead of controlled values", () => {
+    render(<SubscriptionManager {...props()} />);
+
+    expect(screen.getByRole("combobox", { name: "添加到分组" })).toHaveTextContent("未分组");
+    expect(screen.getByRole("combobox", { name: "OpenAI 的分组" })).toHaveTextContent("技术");
+  });
+
   test("adds a feed to the selected group", async () => {
     const callbacks = props();
     render(<SubscriptionManager {...callbacks} />);
 
-    await userEvent.click(screen.getByRole("combobox", { name: "添加到分组" }));
+    const groupSelect = screen.getByRole("combobox", { name: "添加到分组" });
+    await userEvent.click(groupSelect);
     await userEvent.click(await screen.findByRole("option", { name: "技术" }));
+    expect(groupSelect).toHaveTextContent("技术");
     await userEvent.type(
       screen.getByRole("textbox", { name: "订阅源地址" }),
       "https://example.com/new.xml",
