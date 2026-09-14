@@ -535,6 +535,33 @@ test("opens settings in a larger dialog while preserving viewport margins", asyn
   client.clear();
 });
 
+test("keeps settings tab panels vertically scrollable without horizontal scrolling", async () => {
+  const client = createAppQueryClient();
+  mockIPC((command) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: "设置" }));
+
+  const tabs = screen.getByRole("tablist").parentElement;
+  expect(tabs).toHaveClass("min-w-0");
+
+  for (const tabName of ["常规", "订阅管理", "导入与导出"]) {
+    await userEvent.click(screen.getByRole("tab", { name: tabName }));
+    expect(screen.getByRole("tabpanel")).toHaveClass(
+      "min-w-0",
+      "overflow-x-hidden",
+      "overflow-y-auto",
+    );
+  }
+  client.clear();
+});
+
 test("shows localized labels for settings select values", async () => {
   const client = createAppQueryClient();
   mockIPC((command) => {

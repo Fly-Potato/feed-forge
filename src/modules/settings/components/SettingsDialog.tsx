@@ -145,7 +145,7 @@ export function SettingsDialog({
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as SettingsTab)}
-          className="min-h-0"
+          className="min-h-0 min-w-0"
         >
           <TabsList className="w-full">
             <TabsTrigger value="general">常规</TabsTrigger>
@@ -153,7 +153,7 @@ export function SettingsDialog({
             <TabsTrigger value="data">导入与导出</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="general" className="min-h-0 overflow-y-auto py-4">
+          <TabsContent value="general" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto py-4">
             <div className="flex flex-col gap-5">
               <div>
                 <h3 className="font-medium">阅读偏好</h3>
@@ -226,7 +226,7 @@ export function SettingsDialog({
             </div>
           </TabsContent>
 
-          <TabsContent value="subscriptions" className="min-h-0 overflow-y-auto py-4">
+          <TabsContent value="subscriptions" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto py-4">
             <SubscriptionManager
               feeds={feeds}
               groups={feedGroups}
@@ -243,7 +243,7 @@ export function SettingsDialog({
             />
           </TabsContent>
 
-          <TabsContent value="data" className="min-h-0 overflow-y-auto py-4">
+          <TabsContent value="data" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto py-4">
             <OpmlTools onBusyChange={setOpmlBusy} />
           </TabsContent>
         </Tabs>
