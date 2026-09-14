@@ -26,6 +26,48 @@ const filters: Array<{ value: ArticleFilter; label: string }> = [
   { value: "starred", label: "收藏" },
 ];
 
+const summaryBlockSelector = [
+  "address",
+  "article",
+  "blockquote",
+  "br",
+  "dd",
+  "div",
+  "dt",
+  "figcaption",
+  "figure",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "hr",
+  "li",
+  "main",
+  "p",
+  "pre",
+  "section",
+  "td",
+  "th",
+  "tr",
+].join(",");
+
+function getArticleSummaryText(summary: string | null): string {
+  if (!summary) {
+    return "暂无摘要";
+  }
+
+  const document = new DOMParser().parseFromString(summary, "text/html");
+  document
+    .querySelectorAll("script,style,template,noscript,iframe,object,svg,canvas")
+    .forEach((element) => element.remove());
+  document.body.querySelectorAll(summaryBlockSelector).forEach((element) => element.append(" "));
+
+  return document.body.textContent?.replace(/\s+/g, " ").trim() || "暂无摘要";
+}
+
 export function ArticleList({
   articles,
   filter,
@@ -109,8 +151,8 @@ export function ArticleList({
                 <span className={cn("block", article.isRead ? "font-normal" : "font-semibold")}>
                   {article.title}
                 </span>
-                <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">
-                  {article.summary ?? "暂无摘要"}
+                <span className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">
+                  {getArticleSummaryText(article.summary)}
                 </span>
               </button>
             </li>

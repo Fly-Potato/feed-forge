@@ -13,6 +13,7 @@ import { ArticleList } from "@/modules/articles/components/ArticleList";
 import { ArticleReader } from "@/modules/articles/components/ArticleReader";
 import { useArticles } from "@/modules/articles/hooks/useArticles";
 import type { ArticleFilter, ArticleSummary } from "@/modules/articles/types";
+import { AddFeedDialog } from "@/modules/feeds/components/AddFeedDialog";
 import { FeedList } from "@/modules/feeds/components/FeedList";
 import { useFeeds } from "@/modules/feeds/hooks/useFeeds";
 import { SettingsDialog } from "@/modules/settings/components/SettingsDialog";
@@ -261,6 +262,7 @@ export function ReaderPage() {
           >
             <div className={cn("flex shrink-0 gap-1", feedsCollapsed ? "flex-col items-center" : "items-center") }>
               <h2 className={feedsCollapsed ? "sr-only" : "mr-auto text-sm font-semibold text-muted-foreground"}>订阅源</h2>
+              <AddFeedDialog groups={groupsForDisplay} onAdd={create} />
               {syncAllButton}
               <Button
                 variant="ghost"
@@ -284,12 +286,17 @@ export function ReaderPage() {
               <div className="min-h-0 flex-1 overflow-y-auto py-1">
                 {feedsLoading ? <span className="text-xs text-muted-foreground">加载中...</span> : null}
                 {feedsError ? <p className="mb-2 text-sm text-destructive" role="alert">{feedsError}</p> : null}
-                <FeedList
-                  groups={groupsForDisplay}
-                  feeds={feeds}
-                  selectedFeedId={selectedFeedId}
-                  onSelect={selectReaderFeed}
-                />
+                {!feedsLoading ? (
+                  <FeedList
+                    groups={groupsForDisplay}
+                    feeds={feeds}
+                    selectedFeedId={selectedFeedId}
+                    onSelect={selectReaderFeed}
+                    onCreateGroup={createGroup}
+                    onRenameGroup={renameGroup}
+                    onRemoveFeed={removeSelected}
+                  />
+                ) : null}
               </div>
             ) : null}
 

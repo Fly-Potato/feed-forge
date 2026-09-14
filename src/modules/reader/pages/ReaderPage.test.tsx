@@ -412,6 +412,109 @@ test("removes the content header and keeps scoped refresh and settings actions r
   client.clear();
 });
 
+test("opens the add-feed dialog from the feed panel title actions", async () => {
+  const client = createAppQueryClient();
+  mockIPC((command) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [{ id: 3, title: "技术" }];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  const feedPanel = screen.getByRole("complementary", { name: "订阅源面板" });
+  await userEvent.click(await within(feedPanel).findByRole("button", { name: "添加订阅源" }));
+
+  expect(screen.getByRole("dialog", { name: "添加订阅源" })).toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "添加到分组" })).toHaveTextContent("未分组");
+  client.clear();
+});
+
+test("adds a feed to the selected group from the title dialog", async () => {
+  const client = createAppQueryClient();
+  const addInputs: Array<{ url: string; groupId: number | null }> = [];
+  mockIPC((command, payload) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [{ id: 3, title: "技术" }];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    if (command === "feeds_add") {
+      const input = (payload as { input: { url: string; groupId: number | null } }).input;
+      addInputs.push(input);
+      return { ...feed, id: 8, title: "新订阅", url: input.url, groupId: input.groupId };
+    }
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: "添加订阅源" }));
+  await userEvent.click(screen.getByRole("combobox", { name: "添加到分组" }));
+  await userEvent.click(await screen.findByRole("option", { name: "技术" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "订阅源地址" }), "https://example.com/new.xml");
+  await userEvent.click(screen.getByRole("button", { name: "添加订阅" }));
+
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "添加订阅源" })).not.toBeInTheDocument());
+  expect(addInputs).toEqual([{ url: "https://example.com/new.xml", groupId: 3 }]);
+  client.clear();
+});
+
+test("keeps the add-feed dialog open while submission is pending", async () => {
+  const client = createAppQueryClient();
+  let resolveAdd!: (value: typeof feed) => void;
+  const pendingAdd = new Promise<typeof feed>((resolve) => { resolveAdd = resolve; });
+  mockIPC((command) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    if (command === "feeds_add") return pendingAdd;
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: "添加订阅源" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "订阅源地址" }), "https://example.com/new.xml");
+  await userEvent.click(screen.getByRole("button", { name: "添加订阅" }));
+
+  expect(screen.getByRole("button", { name: "正在添加..." })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "取消" })).toBeDisabled();
+  await userEvent.keyboard("{Escape}");
+  expect(screen.getByRole("dialog", { name: "添加订阅源" })).toBeInTheDocument();
+
+  resolveAdd({ ...feed, id: 8, url: "https://example.com/new.xml" });
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "添加订阅源" })).not.toBeInTheDocument());
+  client.clear();
+});
+
+test("retains the add-feed dialog values after a failed submission", async () => {
+  const client = createAppQueryClient();
+  mockIPC((command) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [{ id: 3, title: "技术" }];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    if (command === "feeds_add") {
+      throw { code: "duplicate", message: "订阅源已存在。", retryable: false };
+    }
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: "添加订阅源" }));
+  await userEvent.click(screen.getByRole("combobox", { name: "添加到分组" }));
+  await userEvent.click(await screen.findByRole("option", { name: "技术" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "订阅源地址" }), "https://example.com/duplicate.xml");
+  await userEvent.click(screen.getByRole("button", { name: "添加订阅" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("订阅源已存在。");
+  expect(screen.getByRole("dialog", { name: "添加订阅源" })).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "订阅源地址" })).toHaveValue("https://example.com/duplicate.xml");
+  expect(screen.getByRole("combobox", { name: "添加到分组" })).toHaveTextContent("技术");
+  expect(screen.getByRole("button", { name: "添加订阅" })).toBeEnabled();
+  client.clear();
+});
+
 test("opens settings in a larger dialog while preserving viewport margins", async () => {
   const client = createAppQueryClient();
   mockIPC((command) => {

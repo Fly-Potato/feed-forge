@@ -36,6 +36,35 @@ function props() {
 }
 
 describe("ArticleList", () => {
+  test("renders HTML summaries as clamped plain text with an empty fallback", () => {
+    const htmlSummaryArticle = {
+      ...article,
+      summary: "<p>第一段 <strong>重点</strong></p><script>不应显示</script><p>第二段</p>",
+    };
+    const emptySummaryArticle = {
+      ...article,
+      id: 12,
+      title: "空摘要文章",
+      summary: "<style>.hidden { display: none; }</style><script>不应显示</script>",
+    };
+
+    render(
+      <ArticleList
+        {...props()}
+        feedSelected
+        articles={[htmlSummaryArticle, emptySummaryArticle]}
+      />,
+    );
+
+    const summary = screen.getByText("第一段 重点 第二段");
+    expect(summary).not.toHaveTextContent(/<p>|<strong>/);
+    expect(summary).not.toHaveTextContent("不应显示");
+    expect(summary).toHaveClass("line-clamp-2");
+    expect(summary).toHaveClass("break-words");
+    expect(summary).not.toHaveClass("block");
+    expect(screen.getByRole("button", { name: "空摘要文章暂无摘要" })).toBeInTheDocument();
+  });
+
   test("keeps one toolbar visible for every article-list state", () => {
     const initial = props();
     const view = render(<ArticleList {...initial} />);
