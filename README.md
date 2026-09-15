@@ -52,13 +52,13 @@ pnpm install
 启动桌面开发环境：
 
 ```powershell
-pnpm desktop:dev
+pnpm dev:desktop
 ```
 
 构建桌面安装包：
 
 ```powershell
-pnpm desktop:build
+pnpm build:desktop
 ```
 
 Tauri 会自动调用 `pnpm dev` 或 `pnpm build` 完成前端开发服务器启动和生产构建。
@@ -69,8 +69,8 @@ Tauri 会自动调用 `pnpm dev` 或 `pnpm build` 完成前端开发服务器启
 | --- | --- |
 | `pnpm dev` | 启动 Vite 前端开发服务器 |
 | `pnpm build` | 执行 TypeScript 检查并构建前端 |
-| `pnpm desktop:dev` | 使用独立开发标识启动 Tauri 桌面应用 |
-| `pnpm desktop:build` | 构建使用生产标识的桌面安装包 |
+| `pnpm dev:desktop` | 使用独立开发标识启动 Tauri 桌面应用 |
+| `pnpm build:desktop` | 构建使用生产标识的桌面安装包 |
 | `pnpm test` | 运行前端测试 |
 | `pnpm test:watch` | 以监听模式运行前端测试 |
 | `pnpm test:coverage` | 运行前端测试并生成覆盖率报告 |

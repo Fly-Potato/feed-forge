@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "desktop:dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
-    "desktop:build": "tauri build",
+    "dev:desktop": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "build:desktop": "tauri build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

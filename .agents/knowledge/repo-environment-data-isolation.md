@@ -9,7 +9,7 @@
 结论：
 - 生产 identifier 固定为 `com.feedforge.app`；开发运行通过 `tauri.dev.conf.json` 覆盖为 `com.feedforge.app.dev`。
 - `db::init_db` 将唯一的 `feed-forge.db` 放在 `app_data_dir`，该目录由 identifier 决定。因此环境隔离覆盖设置、订阅、文章和阅读状态，而不只是设置表。
-- 开发统一使用 `pnpm desktop:dev`，生产构建使用 `pnpm desktop:build`；生产构建不得合并开发配置。
+- 开发统一使用 `pnpm dev:desktop`，生产构建使用 `pnpm build:desktop`；生产构建不得合并开发配置。
 
 联动：
 - 修改 identifier、启动脚本、数据库路径或新增应用目录文件时，应同时验证开发与生产仍落入不同的数据目录。
