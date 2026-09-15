@@ -52,13 +52,13 @@ pnpm install
 启动桌面开发环境：
 
 ```powershell
-pnpm tauri dev
+pnpm desktop:dev
 ```
 
 构建桌面安装包：
 
 ```powershell
-pnpm tauri build
+pnpm desktop:build
 ```
 
 Tauri 会自动调用 `pnpm dev` 或 `pnpm build` 完成前端开发服务器启动和生产构建。
@@ -69,6 +69,8 @@ Tauri 会自动调用 `pnpm dev` 或 `pnpm build` 完成前端开发服务器启
 | --- | --- |
 | `pnpm dev` | 启动 Vite 前端开发服务器 |
 | `pnpm build` | 执行 TypeScript 检查并构建前端 |
+| `pnpm desktop:dev` | 使用独立开发标识启动 Tauri 桌面应用 |
+| `pnpm desktop:build` | 构建使用生产标识的桌面安装包 |
 | `pnpm test` | 运行前端测试 |
 | `pnpm test:watch` | 以监听模式运行前端测试 |
 | `pnpm test:coverage` | 运行前端测试并生成覆盖率报告 |
@@ -99,6 +101,8 @@ feed-forge/
 ## 本地数据
 
 首次启动时，Feed Forge 会在 Tauri 应用数据目录中创建 `feed-forge.db`。数据库使用 SQLite WAL 模式，并在启动阶段自动执行迁移。
+
+开发运行使用 `com.feedforge.app.dev`，生产构建使用 `com.feedforge.app`。Tauri 会据此选择不同的应用数据目录，因此两种运行方式不会共享数据库、订阅、文章、阅读状态或用户设置。
 
 > [!IMPORTANT]
 > Feed Forge 当前没有账号系统、云端数据库或多设备同步。删除应用数据目录会同时删除本机的订阅、文章和阅读状态。

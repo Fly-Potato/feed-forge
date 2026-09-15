@@ -20,7 +20,7 @@ export function AppTitleBar() {
           draggable={false}
         />
         <span className="truncate text-xs font-medium text-muted-foreground">
-          Feed Forge
+          {import.meta.env.DEV ? "Feed Forge DEV" : "Feed Forge"}
         </span>
       </div>
       <div className="flex h-full shrink-0" aria-label="窗口控制">
