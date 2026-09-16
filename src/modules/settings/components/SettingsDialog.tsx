@@ -32,6 +32,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SubscriptionManager } from "@/modules/feeds/components/SubscriptionManager";
 import type { FeedGroup, FeedSummary } from "@/modules/feeds/types";
 import { OpmlTools } from "@/modules/opml/components/OpmlTools";
+import { UpdatePanel } from "@/modules/updater/components/UpdatePanel";
+import type { UpdaterController } from "@/modules/updater/hooks/useUpdater";
 
 import type { Settings } from "../types";
 
@@ -51,6 +53,7 @@ interface SettingsDialogProps {
   settingsLoading: boolean;
   settingsError: string | null;
   onSaveSettings: (settings: Settings) => Promise<Settings>;
+  updater: UpdaterController;
 }
 
 const refreshIntervalItems = [15, 30, 60, 120, 360, 1440].map((minutes) => ({
@@ -62,7 +65,7 @@ const themeItems: Array<{ value: Settings["theme"]; label: string }> = [
   { value: "light", label: "浅色" },
   { value: "dark", label: "深色" },
 ];
-type SettingsTab = "general" | "subscriptions" | "data";
+type SettingsTab = "general" | "subscriptions" | "data" | "about";
 
 export function SettingsDialog({
   feeds,
@@ -80,6 +83,7 @@ export function SettingsDialog({
   settingsLoading,
   settingsError,
   onSaveSettings,
+  updater,
 }: SettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Settings>();
@@ -90,7 +94,7 @@ export function SettingsDialog({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const operationBusy = subscriptionBusy || opmlBusy;
-  const pending = saving || operationBusy;
+  const pending = saving || operationBusy || updater.status === "installing";
 
   useEffect(() => {
     if (open) setDraft(settings);
@@ -139,7 +143,7 @@ export function SettingsDialog({
       >
         <DialogHeader>
           <DialogTitle>设置</DialogTitle>
-          <DialogDescription>管理阅读偏好、订阅源和数据。</DialogDescription>
+          <DialogDescription>管理阅读偏好、订阅源、数据和应用更新。</DialogDescription>
         </DialogHeader>
 
         <Tabs
@@ -151,6 +155,7 @@ export function SettingsDialog({
             <TabsTrigger value="general">常规</TabsTrigger>
             <TabsTrigger value="subscriptions">订阅管理</TabsTrigger>
             <TabsTrigger value="data">导入与导出</TabsTrigger>
+            <TabsTrigger value="about">关于</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto py-4">
@@ -245,6 +250,10 @@ export function SettingsDialog({
 
           <TabsContent value="data" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto py-4">
             <OpmlTools onBusyChange={setOpmlBusy} />
+          </TabsContent>
+
+          <TabsContent value="about" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto py-4">
+            <UpdatePanel updater={updater} />
           </TabsContent>
         </Tabs>
 

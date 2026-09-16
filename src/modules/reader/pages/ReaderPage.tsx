@@ -20,6 +20,8 @@ import { SettingsDialog } from "@/modules/settings/components/SettingsDialog";
 import { useSettings } from "@/modules/settings/hooks/useSettings";
 import { SyncProgress } from "@/modules/sync/components/SyncProgress";
 import { useSync } from "@/modules/sync/hooks/useSync";
+import { UpdatePrompt } from "@/modules/updater/components/UpdatePrompt";
+import { useUpdater } from "@/modules/updater/hooks/useUpdater";
 
 import { useReaderStore } from "../store";
 
@@ -80,6 +82,7 @@ export function ReaderPage() {
   const [articleActionError, setArticleActionError] = useState<string | null>(null);
   const sync = useSync();
   const settingsState = useSettings();
+  const updater = useUpdater({ autoCheck: import.meta.env.PROD });
   const feedsAutoCollapsed = useNarrowViewport(FEEDS_COLLAPSE_BREAKPOINT);
   const articlesAutoCollapsed = useNarrowViewport(ARTICLES_COLLAPSE_BREAKPOINT);
   const [feedsCollapsed, setFeedsCollapsed] = useState(feedsAutoCollapsed);
@@ -238,11 +241,13 @@ export function ReaderPage() {
       settingsLoading={settingsState.loading}
       settingsError={settingsState.error}
       onSaveSettings={settingsState.save}
+      updater={updater}
     />
   );
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      <UpdatePrompt updater={updater} />
       {showCustomTitleBar ? <AppTitleBar /> : null}
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden" role="region" aria-label="应用内容">
         <div

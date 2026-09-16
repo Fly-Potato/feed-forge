@@ -26,6 +26,10 @@ coverage/
 !.env.*.example
 *.local
 
+# Tauri updater private keys
+*.key
+*.key.pub
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
