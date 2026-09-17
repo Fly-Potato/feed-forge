@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "test:all": "pnpm test && pnpm test:rust",
+    "test:scripts": "node --test scripts/*.test.mjs",
+    "test:all": "pnpm test && pnpm test:scripts && pnpm test:rust",
     "check:release-version": "node scripts/check-release-version.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
