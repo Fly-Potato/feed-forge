@@ -125,7 +125,7 @@ jobs:
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
           gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern latest.json --dir $releaseDir --clobber
-          gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets |
+          gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets,tagName |
             Set-Content -LiteralPath $releasePath -Encoding utf8NoBOM
           node scripts/normalize-updater-manifest.mjs $manifestPath $releasePath
           gh release upload "${{ github.ref_name }}" $manifestPath --repo "${{ github.repository }}" --clobber

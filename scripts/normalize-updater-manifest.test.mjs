@@ -16,6 +16,7 @@ const downloadUrl = "https://github.com/Fly-Potato/feed-forge/releases/download/
 const execFileAsync = promisify(execFile);
 
 const release = {
+  tagName: "v0.1.2",
   assets: [
     {
       apiUrl,
@@ -33,6 +34,55 @@ const release = {
     },
   ],
 };
+
+test("uses the release tag instead of a draft untagged asset URL", () => {
+  const manifest = {
+    version: "0.1.2",
+    platforms: {
+      "windows-x86_64": {
+        signature: "signed-primary",
+        url: apiUrl,
+      },
+    },
+  };
+  const draftRelease = {
+    ...release,
+    assets: release.assets.map((asset) => ({
+      ...asset,
+      url: "https://github.com/Fly-Potato/feed-forge/releases/download/untagged-a60ba6493a477da19e65/Feed.Forge_0.1.2_x64-setup.exe",
+    })),
+  };
+
+  assert.equal(
+    normalizeUpdaterManifest(manifest, draftRelease).platforms["windows-x86_64"].url,
+    downloadUrl,
+  );
+});
+
+test("repairs a manifest that already contains a draft untagged asset URL", () => {
+  const draftDownloadUrl = "https://github.com/Fly-Potato/feed-forge/releases/download/untagged-a60ba6493a477da19e65/Feed.Forge_0.1.2_x64-setup.exe";
+  const manifest = {
+    version: "0.1.2",
+    platforms: {
+      "windows-x86_64": {
+        signature: "signed-primary",
+        url: draftDownloadUrl,
+      },
+    },
+  };
+  const draftRelease = {
+    ...release,
+    assets: release.assets.map((asset) => ({
+      ...asset,
+      url: draftDownloadUrl,
+    })),
+  };
+
+  assert.equal(
+    normalizeUpdaterManifest(manifest, draftRelease).platforms["windows-x86_64"].url,
+    downloadUrl,
+  );
+});
 
 test("normalizes updater URLs without changing stable entries or signatures", () => {
   const manifest = {

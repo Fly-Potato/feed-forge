@@ -19,8 +19,30 @@ function isGitHubReleaseAssetApiUrl(value) {
     && /^[0-9]+$/.test(segments[5]);
 }
 
+function buildReleaseAssetDownloadUrl(asset, tagName) {
+  if (typeof tagName !== "string" || tagName.length === 0) {
+    throw new Error("Release 缺少 tagName，无法生成稳定的资产下载地址。");
+  }
+  if (typeof asset.name !== "string" || asset.name.length === 0) {
+    throw new Error("Release 资产缺少 name，无法生成稳定的下载地址。");
+  }
+  const apiUrl = new URL(asset.apiUrl);
+  const segments = apiUrl.pathname.split("/").filter(Boolean);
+  return "https://github.com/"
+    + encodeURIComponent(segments[1]) + "/"
+    + encodeURIComponent(segments[2]) + "/releases/download/"
+    + encodeURIComponent(tagName) + "/"
+    + encodeURIComponent(asset.name);
+}
+
 export function normalizeUpdaterManifest(manifest, release) {
-  const downloadUrls = new Map(release.assets.map((asset) => [asset.apiUrl, asset.url]));
+  const downloadUrls = new Map(release.assets.flatMap((asset) => {
+    const downloadUrl = buildReleaseAssetDownloadUrl(asset, release.tagName);
+    return [
+      [asset.apiUrl, downloadUrl],
+      [asset.url, downloadUrl],
+    ];
+  }));
   const platforms = Object.fromEntries(
     Object.entries(manifest.platforms).map(([platform, entry]) => {
       const downloadUrl = downloadUrls.get(entry.url);
