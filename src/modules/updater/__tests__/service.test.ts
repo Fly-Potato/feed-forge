@@ -1,14 +1,22 @@
 import { beforeEach, expect, test, vi } from "vitest";
 
-const { checkMock, getVersionMock, relaunchMock } = vi.hoisted(() => ({
+const { checkMock, getVersionMock, relaunchMock, logInfoMock, logWarnMock, logErrorMock } = vi.hoisted(() => ({
   checkMock: vi.fn(),
   getVersionMock: vi.fn(),
   relaunchMock: vi.fn(),
+  logInfoMock: vi.fn(),
+  logWarnMock: vi.fn(),
+  logErrorMock: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: checkMock }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: getVersionMock }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: relaunchMock }));
+vi.mock("@tauri-apps/plugin-log", () => ({
+  info: logInfoMock,
+  warn: logWarnMock,
+  error: logErrorMock,
+}));
 
 import { checkForUpdate, getCurrentVersion } from "../service";
 
@@ -16,12 +24,17 @@ beforeEach(() => {
   checkMock.mockReset();
   getVersionMock.mockReset();
   relaunchMock.mockReset();
+  logInfoMock.mockReset().mockResolvedValue(undefined);
+  logWarnMock.mockReset().mockResolvedValue(undefined);
+  logErrorMock.mockReset().mockResolvedValue(undefined);
 });
 
 test("returns null when the release feed has no newer version", async () => {
   checkMock.mockResolvedValue(null);
 
   await expect(checkForUpdate()).resolves.toBeNull();
+  expect(logInfoMock).toHaveBeenCalledWith("[updater] update check started");
+  expect(logInfoMock).toHaveBeenCalledWith("[updater] no update available");
 });
 
 test("exposes release metadata and reports cumulative download progress", async () => {
@@ -53,6 +66,39 @@ test("exposes release metadata and reports cumulative download progress", async 
     { downloaded: 100, total: 100 },
   ]);
   expect(relaunchMock).toHaveBeenCalledOnce();
+  expect(logInfoMock).toHaveBeenCalledWith("[updater] update 0.1.1 available");
+  expect(logInfoMock).toHaveBeenCalledWith("[updater] update 0.1.1 installed; restarting");
+});
+
+test("logs a safe classification and preserves update check failures", async () => {
+  checkMock.mockRejectedValue(new Error("https://example.com/update?token=secret"));
+
+  await expect(checkForUpdate()).rejects.toThrow("token=secret");
+
+  expect(logWarnMock).toHaveBeenCalledWith("[updater] update check failed");
+  expect(JSON.stringify(logWarnMock.mock.calls)).not.toContain("secret");
+});
+
+test("logs a safe classification and preserves update installation failures", async () => {
+  const downloadAndInstall = vi.fn().mockRejectedValue(
+    new Error("https://example.com/update?token=install-secret"),
+  );
+  checkMock.mockResolvedValue({
+    available: true,
+    currentVersion: "0.1.0",
+    version: "0.1.1",
+    date: "2026-09-15T00:00:00Z",
+    body: "修复同步问题",
+    rawJson: {},
+    downloadAndInstall,
+  });
+  const update = await checkForUpdate();
+
+  await expect(update?.install(vi.fn())).rejects.toThrow("install-secret");
+
+  expect(logErrorMock).toHaveBeenCalledWith("[updater] update 0.1.1 install failed");
+  expect(JSON.stringify(logErrorMock.mock.calls)).not.toContain("install-secret");
+  expect(relaunchMock).not.toHaveBeenCalled();
 });
 
 test("uses an empty note when the release omits its body", async () => {

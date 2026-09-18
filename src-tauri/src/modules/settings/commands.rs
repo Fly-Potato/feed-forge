@@ -11,5 +11,14 @@ pub async fn settings_get(_input: EmptyInput, state: State<'_, AppState>) -> Res
 
 #[tauri::command]
 pub async fn settings_update(input: SettingsUpdateInput, state: State<'_, AppState>) -> Result<SettingsDto, AppError> {
-    service::update(&state.db, input).await
+    let result = service::update(&state.db, input).await;
+    match &result {
+        Ok(_) => log::info!(target: "feed-forge::settings", "settings updated"),
+        Err(error) => log::warn!(
+            target: "feed-forge::settings",
+            "settings update failed error_code={}",
+            error.code
+        ),
+    }
+    result
 }

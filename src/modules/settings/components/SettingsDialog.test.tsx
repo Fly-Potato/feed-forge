@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 
 import type { UpdaterController } from "@/modules/updater/hooks/useUpdater";
+import { useLogStore } from "@/modules/logs/store";
 
 import { SettingsDialog } from "./SettingsDialog";
 
@@ -44,4 +45,45 @@ test("shows application version and manual update controls on the about tab", as
 
   expect(screen.getByText("当前版本 0.1.0")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "检查更新" })).toBeInTheDocument();
+});
+
+test("opens the current runtime log viewer from the logs tab", async () => {
+  useLogStore.setState({ entries: [], nextId: 1 });
+  const updater: UpdaterController = {
+    currentVersion: "0.1.0",
+    status: "idle",
+    update: null,
+    progress: undefined,
+    error: null,
+    promptOpen: false,
+    check: vi.fn(),
+    install: vi.fn(),
+    dismissPrompt: vi.fn(),
+  };
+  render(
+    <SettingsDialog
+      feeds={[]}
+      feedGroups={[]}
+      feedsLoading={false}
+      feedsError={null}
+      onAddFeed={vi.fn()}
+      onRenameFeed={vi.fn()}
+      onRemoveFeed={vi.fn()}
+      onCreateFeedGroup={vi.fn()}
+      onRenameFeedGroup={vi.fn()}
+      onRemoveFeedGroup={vi.fn()}
+      onMoveFeed={vi.fn()}
+      settings={{ refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true }}
+      settingsLoading={false}
+      settingsError={null}
+      onSaveSettings={vi.fn()}
+      updater={updater}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "设置" }));
+  await userEvent.click(screen.getByRole("tab", { name: "日志" }));
+
+  expect(screen.getByRole("searchbox", { name: "搜索日志" })).toBeInTheDocument();
+  expect(screen.getByText("当前运行期间还没有日志。")).toBeInTheDocument();
 });

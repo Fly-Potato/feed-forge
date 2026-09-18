@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 
 use reqwest::header::{ETAG, IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED};
 use sqlx::{FromRow, SqlitePool};
@@ -27,9 +28,17 @@ pub async fn run(
     canceled: Arc<AtomicBool>,
     channel: Channel<SyncEvent>,
 ) {
+    let started_at = Instant::now();
     let result = run_inner(&pool, &manager, feed_id, job_id, canceled.clone(), &channel).await;
     match result {
         Ok(processed) if canceled.load(Ordering::Relaxed) => {
+            log::info!(
+                target: "feed-forge::sync",
+                "sync canceled job_id={} processed={} elapsed_ms={}",
+                job_id,
+                processed,
+                started_at.elapsed().as_millis()
+            );
             let _ = channel.send(SyncEvent::Canceled { job_id, processed });
             manager.update(SyncStatus {
                 job_id,
@@ -40,6 +49,13 @@ pub async fn run(
             });
         }
         Ok(processed) => {
+            log::info!(
+                target: "feed-forge::sync",
+                "sync completed job_id={} processed={} elapsed_ms={}",
+                job_id,
+                processed,
+                started_at.elapsed().as_millis()
+            );
             let _ = channel.send(SyncEvent::Completed { job_id, processed });
             manager.update(SyncStatus {
                 job_id,
@@ -50,6 +66,13 @@ pub async fn run(
             });
         }
         Err(error) => {
+            log::error!(
+                target: "feed-forge::sync",
+                "sync failed job_id={} error_code={} elapsed_ms={}",
+                job_id,
+                error.code,
+                started_at.elapsed().as_millis()
+            );
             let message = error.message.clone();
             let _ = channel.send(SyncEvent::Failed {
                 job_id,
@@ -92,6 +115,12 @@ async fn run_inner(
     };
 
     let total = feeds.len() as u32;
+    log::debug!(
+        target: "feed-forge::sync",
+        "sync sources resolved job_id={} total={}",
+        job_id,
+        total
+    );
     let _ = channel.send(SyncEvent::Started { job_id, total });
     manager.update(SyncStatus {
         job_id,

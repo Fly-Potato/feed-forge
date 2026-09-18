@@ -14,6 +14,12 @@ pub async fn sync_start(
     state: State<'_, AppState>,
 ) -> Result<SyncAccepted, AppError> {
     let (job_id, canceled) = state.sync.create_job();
+    log::info!(
+        target: "feed-forge::sync",
+        "sync accepted job_id={} feed_id={:?}",
+        job_id,
+        input.feed_id
+    );
     tauri::async_runtime::spawn(service::run(
         state.db.clone(),
         state.sync.clone(),
@@ -31,8 +37,14 @@ pub fn sync_cancel(
     state: State<'_, AppState>,
 ) -> Result<SyncAccepted, AppError> {
     if !state.sync.cancel(input.job_id) {
+        log::warn!(
+            target: "feed-forge::sync",
+            "sync cancel rejected job_id={} error_code=not_found",
+            input.job_id
+        );
         return Err(AppError::not_found());
     }
+    log::info!(target: "feed-forge::sync", "sync cancel requested job_id={}", input.job_id);
     Ok(SyncAccepted { job_id: input.job_id })
 }
 

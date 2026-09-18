@@ -6,6 +6,35 @@ mod state;
 mod tray;
 
 use tauri::Manager;
+use tauri_plugin_log::{
+    log::LevelFilter, FileOpenStrategy, RotationStrategy, Target, TargetKind, TimezoneStrategy,
+};
+
+const MAX_LOG_FILE_SIZE: u128 = 5 * 1024 * 1024;
+
+fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    let mut targets = vec![
+        Target::new(TargetKind::LogDir { file_name: None }),
+        Target::new(TargetKind::Webview),
+    ];
+    #[cfg(debug_assertions)]
+    targets.push(Target::new(TargetKind::Stdout));
+
+    tauri_plugin_log::Builder::new()
+        .targets(targets)
+        .level(if cfg!(debug_assertions) {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        })
+        .level_for("sqlx", LevelFilter::Warn)
+        .level_for("reqwest", LevelFilter::Warn)
+        .rotation_strategy(RotationStrategy::KeepSome(5))
+        .max_file_size(MAX_LOG_FILE_SIZE)
+        .timezone_strategy(TimezoneStrategy::UseLocal)
+        .file_open_strategy(FileOpenStrategy::Append)
+        .build()
+}
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -14,7 +43,9 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    let builder = tauri::Builder::default()
+        .plugin(log_plugin())
+        .plugin(tauri_plugin_opener::init());
 
     #[cfg(desktop)]
     let builder = builder
@@ -28,13 +59,26 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            let pool = tauri::async_runtime::block_on(db::init_db(&app.handle()))?;
+            log::info!(target: "feed-forge::app", "database initialization started");
+            let pool = match tauri::async_runtime::block_on(db::init_db(&app.handle())) {
+                Ok(pool) => pool,
+                Err(error) => {
+                    log::error!(
+                        target: "feed-forge::app",
+                        "database initialization failed error_code={}",
+                        error.code
+                    );
+                    return Err(error.into());
+                }
+            };
+            log::info!(target: "feed-forge::app", "database initialization completed");
             app.manage(state::AppState {
                 db: pool,
                 sync: std::sync::Arc::new(state::SyncManager::new()),
             });
             #[cfg(target_os = "windows")]
             tray::setup(app)?;
+            log::info!(target: "feed-forge::app", "application setup completed");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -2,6 +2,8 @@ import { getVersion } from "@tauri-apps/api/app";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent } from "@tauri-apps/plugin-updater";
 
+import { appLogger } from "@/modules/logs/logger";
+
 import type { AvailableUpdate, UpdateProgress } from "./types";
 
 export function getCurrentVersion() {
@@ -9,8 +11,20 @@ export function getCurrentVersion() {
 }
 
 export async function checkForUpdate(): Promise<AvailableUpdate | null> {
-  const update = await check();
-  if (!update) return null;
+  void appLogger.info("updater", "update check started");
+  let update;
+  try {
+    update = await check();
+  } catch (cause) {
+    void appLogger.warn("updater", "update check failed");
+    throw cause;
+  }
+  if (!update) {
+    void appLogger.info("updater", "no update available");
+    return null;
+  }
+
+  void appLogger.info("updater", `update ${update.version} available`);
 
   return {
     version: update.version,
@@ -37,7 +51,13 @@ export async function checkForUpdate(): Promise<AvailableUpdate | null> {
         onProgress(progress);
       };
 
-      await update.downloadAndInstall(report);
+      try {
+        await update.downloadAndInstall(report);
+      } catch (cause) {
+        void appLogger.error("updater", `update ${update.version} install failed`);
+        throw cause;
+      }
+      void appLogger.info("updater", `update ${update.version} installed; restarting`);
       await relaunch();
     },
   };
