@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use feed_rs::model::{Entry, Feed, Link, Text};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -25,133 +25,72 @@ pub struct NormalizedArticle {
     pub published_at: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct RssRoot {
-    channel: RssChannel,
+pub fn parse_feed_at(bytes: &[u8], source_url: &str) -> Result<NormalizedFeed, ParseError> {
+    let feed = feed_rs::parser::Builder::new()
+        .base_uri(Some(source_url))
+        .id_generator(stable_id)
+        .sanitize_content(false)
+        .build()
+        .parse(bytes)
+        .map_err(|_| ParseError::Unsupported)?;
+
+    Ok(normalize_feed(feed))
 }
 
-#[derive(Debug, Deserialize)]
-struct RssChannel {
-    title: Option<String>,
-    link: Option<String>,
-    description: Option<String>,
-    #[serde(default)]
-    item: Vec<RssItem>,
+fn stable_id(links: &[Link], title: &Option<Text>, _base_uri: Option<&str>) -> String {
+    preferred_link(links)
+        .map(ToOwned::to_owned)
+        .or_else(|| title.as_ref().map(|value| value.content.clone()))
+        .unwrap_or_else(|| "Untitled article".to_string())
 }
 
-#[derive(Debug, Deserialize)]
-struct RssItem {
-    title: Option<String>,
-    link: Option<String>,
-    guid: Option<String>,
-    author: Option<String>,
-    description: Option<String>,
-    #[serde(rename = "content:encoded")]
-    content: Option<String>,
-    pub_date: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct AtomRoot {
-    title: Option<String>,
-    #[serde(default)]
-    link: Vec<AtomLink>,
-    #[serde(default)]
-    entry: Vec<AtomEntry>,
-}
-
-#[derive(Debug, Deserialize)]
-struct AtomLink {
-    #[serde(rename = "@href")]
-    href: Option<String>,
-    #[serde(rename = "@rel")]
-    rel: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct AtomEntry {
-    title: Option<String>,
-    id: Option<String>,
-    #[serde(default)]
-    link: Vec<AtomLink>,
-    summary: Option<String>,
-    content: Option<String>,
-    updated: Option<String>,
-    published: Option<String>,
-    author: Option<AtomAuthor>,
-}
-
-#[derive(Debug, Deserialize)]
-struct AtomAuthor {
-    name: Option<String>,
-}
-
-pub fn parse_feed(bytes: &[u8]) -> Result<NormalizedFeed, ParseError> {
-    let xml = std::str::from_utf8(bytes).map_err(|_| ParseError::Unsupported)?;
-    if let Ok(root) = quick_xml::de::from_str::<RssRoot>(xml) {
-        return Ok(NormalizedFeed {
-            title: root
-                .channel
-                .title
-                .unwrap_or_else(|| "Untitled feed".to_string()),
-            site_url: root.channel.link,
-            description: root.channel.description,
-            articles: root.channel.item.into_iter().map(normalize_rss).collect(),
-        });
+fn normalize_feed(feed: Feed) -> NormalizedFeed {
+    NormalizedFeed {
+        title: text_content(feed.title).unwrap_or_else(|| "Untitled feed".to_string()),
+        site_url: preferred_link(&feed.links).map(ToOwned::to_owned),
+        description: text_content(feed.description),
+        articles: feed.entries.into_iter().map(normalize_article).collect(),
     }
-
-    if let Ok(root) = quick_xml::de::from_str::<AtomRoot>(xml) {
-        let site_url = root
-            .link
-            .iter()
-            .find(|link| link.rel.as_deref().unwrap_or("alternate") == "alternate")
-            .and_then(|link| link.href.clone());
-        return Ok(NormalizedFeed {
-            title: root
-                .title
-                .unwrap_or_else(|| "Untitled feed".to_string()),
-            site_url,
-            description: None,
-            articles: root.entry.into_iter().map(normalize_atom).collect(),
-        });
-    }
-
-    Err(ParseError::Unsupported)
 }
 
-fn normalize_rss(item: RssItem) -> NormalizedArticle {
-    let url = item.link;
-    let title = item.title.unwrap_or_else(|| "Untitled article".to_string());
-    let guid = item
-        .guid
+fn normalize_article(entry: Entry) -> NormalizedArticle {
+    let url = preferred_link(&entry.links).map(ToOwned::to_owned);
+    let title = text_content(entry.title).unwrap_or_else(|| "Untitled article".to_string());
+    let guid = non_empty(entry.id)
         .or_else(|| url.clone())
         .unwrap_or_else(|| title.clone());
+
     NormalizedArticle {
         guid,
         url,
         title,
-        author: item.author,
-        summary: item.description,
-        content: item.content,
-        published_at: item.pub_date,
+        author: entry
+            .authors
+            .into_iter()
+            .map(|author| author.name)
+            .find(|name| !name.trim().is_empty()),
+        summary: text_content(entry.summary),
+        content: entry.content.and_then(|content| content.body),
+        published_at: entry
+            .published
+            .or(entry.updated)
+            .map(|date| date.to_rfc3339()),
     }
 }
 
-fn normalize_atom(item: AtomEntry) -> NormalizedArticle {
-    let url = item
-        .link
+fn preferred_link(links: &[Link]) -> Option<&str> {
+    links
         .iter()
-        .find(|link| link.rel.as_deref().unwrap_or("alternate") == "alternate")
-        .and_then(|link| link.href.clone());
-    let title = item.title.unwrap_or_else(|| "Untitled article".to_string());
-    let guid = item.id.or_else(|| url.clone()).unwrap_or_else(|| title.clone());
-    NormalizedArticle {
-        guid,
-        url,
-        title,
-        author: item.author.and_then(|author| author.name),
-        summary: item.summary,
-        content: item.content,
-        published_at: item.published.or(item.updated),
-    }
+        .find(|link| {
+            !link.href.trim().is_empty() && matches!(link.rel.as_deref(), None | Some("alternate"))
+        })
+        .map(|link| link.href.as_str())
+}
+
+fn text_content(value: Option<Text>) -> Option<String> {
+    value.and_then(|text| non_empty(text.content))
+}
+
+fn non_empty(value: String) -> Option<String> {
+    (!value.trim().is_empty()).then_some(value)
 }

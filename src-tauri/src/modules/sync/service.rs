@@ -10,7 +10,7 @@ use crate::error::AppError;
 use crate::state::SyncManager;
 
 use super::dto::{SyncEvent, SyncStatus};
-use super::parser::parse_feed;
+use super::parser::parse_feed_at;
 
 #[derive(Debug, FromRow)]
 struct FeedForSync {
@@ -190,7 +190,7 @@ async fn sync_feed(
     if body.len() > 4 * 1024 * 1024 {
         return Err(AppError::network());
     }
-    let parsed = parse_feed(&body).map_err(|_| AppError::parse())?;
+    let parsed = parse_feed_at(&body, &feed.url).map_err(|_| AppError::parse())?;
 
     let mut transaction = pool.begin().await?;
     sqlx::query(

@@ -69,7 +69,7 @@ impl SyncManager {
 mod tests {
     use std::time::Duration;
 
-    use crate::modules::sync::parser::parse_feed;
+    use crate::modules::sync::parser::parse_feed_at;
 
     use super::SyncManager;
 
@@ -98,9 +98,41 @@ mod tests {
         .error_for_status()
         .expect("GitHub returned an error status");
         let body = response.bytes().await.expect("the response body was invalid");
-        let feed = parse_feed(&body).expect("GitHub did not return a supported feed");
+        let feed = parse_feed_at(&body, "https://github.com/openai/codex/releases.atom")
+            .expect("GitHub did not return a supported feed");
 
         assert!(!feed.title.trim().is_empty());
         assert!(!feed.articles.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires public network access"]
+    async fn downloads_and_parses_tauri_rss_feed() {
+        let url = "https://v2.tauri.app/blog/rss.xml";
+        let response = tokio::time::timeout(
+            Duration::from_secs(20),
+            SyncManager::new().client.get(url).send(),
+        )
+        .await
+        .expect("the Tauri RSS request timed out")
+        .expect("the Tauri RSS request failed")
+        .error_for_status()
+        .expect("Tauri returned an error status");
+        let body = response
+            .bytes()
+            .await
+            .expect("the response body was invalid");
+        let feed = parse_feed_at(&body, url).expect("Tauri did not return a supported feed");
+
+        assert_eq!(feed.title, "Tauri | Blog");
+        assert!(!feed.articles.is_empty());
+        assert!(feed
+            .articles
+            .iter()
+            .any(|article| article.content.is_some()));
+        assert!(feed
+            .articles
+            .iter()
+            .any(|article| article.published_at.is_some()));
     }
 }
