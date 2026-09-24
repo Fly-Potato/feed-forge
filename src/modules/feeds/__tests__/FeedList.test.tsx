@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 
@@ -56,6 +56,7 @@ describe("FeedList", () => {
         onSelect={vi.fn()}
         onCreateGroup={vi.fn()}
         onRenameGroup={vi.fn()}
+        onEditFeed={vi.fn()}
         onRemoveFeed={vi.fn()}
       />,
     );
@@ -76,6 +77,7 @@ describe("FeedList", () => {
         onSelect={onSelect}
         onCreateGroup={vi.fn()}
         onRenameGroup={vi.fn()}
+        onEditFeed={vi.fn()}
         onRemoveFeed={vi.fn()}
       />,
     );
@@ -107,6 +109,7 @@ describe("FeedList", () => {
         onSelect={vi.fn()}
         onCreateGroup={vi.fn()}
         onRenameGroup={vi.fn()}
+        onEditFeed={vi.fn()}
         onRemoveFeed={vi.fn()}
       />,
     );
@@ -121,6 +124,7 @@ describe("FeedList", () => {
     await user.keyboard("{Escape}");
     const feed = within(tree).getByRole("treeitem", { name: /Rust 周刊/ });
     await user.pointer([{ target: feed }, "[MouseRight]"]);
+    expect(screen.getByRole("menuitem", { name: "编辑订阅" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "删除订阅" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "重命名分组" })).not.toBeInTheDocument();
 
@@ -147,6 +151,7 @@ describe("FeedList", () => {
         onSelect={vi.fn()}
         onCreateGroup={onCreateGroup}
         onRenameGroup={onRenameGroup}
+        onEditFeed={vi.fn()}
         onRemoveFeed={vi.fn()}
       />,
     );
@@ -180,6 +185,80 @@ describe("FeedList", () => {
     expect(screen.queryByRole("dialog", { name: "新建分组" })).not.toBeInTheDocument();
   });
 
+  test("edits a feed URL and group", async () => {
+    const user = userEvent.setup();
+    const onEditFeed = vi.fn().mockResolvedValue(undefined);
+    render(
+      <FeedList
+        groups={groups}
+        feeds={feeds}
+        selectedFeedId={11}
+        onSelect={vi.fn()}
+        onCreateGroup={vi.fn()}
+        onRenameGroup={vi.fn()}
+        onEditFeed={onEditFeed}
+        onRemoveFeed={vi.fn()}
+      />,
+    );
+
+    const tree = screen.getByRole("tree", { name: "订阅源" });
+    await user.pointer([
+      { target: within(tree).getByRole("treeitem", { name: /Rust 周刊/ }) },
+      "[MouseRight]",
+    ]);
+    await user.click(screen.getByRole("menuitem", { name: "编辑订阅" }));
+
+    const dialog = screen.getByRole("dialog", { name: "编辑订阅" });
+    const urlInput = within(dialog).getByRole("textbox", { name: "订阅源地址" });
+    expect(urlInput).toHaveValue("https://example.com/rust.xml");
+    expect(within(dialog).getByRole("combobox", { name: "所属分组" })).toHaveTextContent("技术");
+
+    fireEvent.change(urlInput, { target: { value: "  https://example.com/updated.xml  " } });
+    await user.click(within(dialog).getByRole("combobox", { name: "所属分组" }));
+    await user.click(await screen.findByRole("option", { name: "工程" }));
+    await user.click(within(dialog).getByRole("button", { name: "保存并刷新" }));
+
+    expect(onEditFeed).toHaveBeenCalledWith(11, "https://example.com/updated.xml", 2);
+    expect(screen.queryByRole("dialog", { name: "编辑订阅" })).not.toBeInTheDocument();
+  });
+
+  test("keeps a failed feed edit open and closes after retry", async () => {
+    const user = userEvent.setup();
+    const onEditFeed = vi.fn()
+      .mockRejectedValueOnce(new Error("订阅源已存在。"))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <FeedList
+        groups={groups}
+        feeds={feeds}
+        selectedFeedId={11}
+        onSelect={vi.fn()}
+        onCreateGroup={vi.fn()}
+        onRenameGroup={vi.fn()}
+        onEditFeed={onEditFeed}
+        onRemoveFeed={vi.fn()}
+      />,
+    );
+
+    const tree = screen.getByRole("tree", { name: "订阅源" });
+    await user.pointer([
+      { target: within(tree).getByRole("treeitem", { name: /Rust 周刊/ }) },
+      "[MouseRight]",
+    ]);
+    await user.click(screen.getByRole("menuitem", { name: "编辑订阅" }));
+
+    const dialog = screen.getByRole("dialog", { name: "编辑订阅" });
+    await user.click(within(dialog).getByRole("button", { name: "保存并刷新" }));
+
+    expect(onEditFeed).toHaveBeenCalledWith(11, "https://example.com/rust.xml", 1);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("订阅源已存在。");
+    expect(screen.getByRole("dialog", { name: "编辑订阅" })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "保存并刷新" }));
+    expect(onEditFeed).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("dialog", { name: "编辑订阅" })).not.toBeInTheDocument();
+  });
+
   test("keeps delete confirmation open and reports a failed removal", async () => {
     const user = userEvent.setup();
     const onRemoveFeed = vi.fn()
@@ -193,6 +272,7 @@ describe("FeedList", () => {
         onSelect={vi.fn()}
         onCreateGroup={vi.fn()}
         onRenameGroup={vi.fn()}
+        onEditFeed={vi.fn()}
         onRemoveFeed={onRemoveFeed}
       />,
     );

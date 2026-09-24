@@ -35,6 +35,14 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 import { buildFeedTree, type FeedTreeGroup } from "../tree";
@@ -44,7 +52,9 @@ interface FeedListProps {
   groups: FeedGroup[];
   feeds: FeedSummary[];
   selectedFeedId: number | undefined;
+  editDisabled?: boolean;
   onSelect: (feedId: number) => void;
+  onEditFeed: (feedId: number, url: string, groupId: number | null) => Promise<unknown>;
   onCreateGroup: (title: string) => Promise<unknown>;
   onRenameGroup: (groupId: number, title: string) => Promise<unknown>;
   onRemoveFeed: (feedId: number) => Promise<unknown>;
@@ -63,7 +73,9 @@ export function FeedList({
   groups,
   feeds,
   selectedFeedId,
+  editDisabled = false,
   onSelect,
+  onEditFeed,
   onCreateGroup,
   onRenameGroup,
   onRemoveFeed,
@@ -74,6 +86,11 @@ export function FeedList({
   const [groupName, setGroupName] = useState("");
   const [groupBusy, setGroupBusy] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
+  const [editingFeed, setEditingFeed] = useState<FeedSummary | null>(null);
+  const [editUrl, setEditUrl] = useState("");
+  const [editGroupId, setEditGroupId] = useState("ungrouped");
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FeedSummary | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -149,6 +166,39 @@ export function FeedList({
     }
   }
 
+  function openEditFeed() {
+    if (contextTarget.kind !== "feed") return;
+    setEditUrl(contextTarget.feed.url);
+    setEditGroupId(contextTarget.feed.groupId === null ? "ungrouped" : String(contextTarget.feed.groupId));
+    setEditError(null);
+    setEditingFeed(contextTarget.feed);
+  }
+
+  async function submitFeedEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingFeed) return;
+    const url = editUrl.trim();
+    if (!url) {
+      setEditError("请输入订阅源地址。");
+      return;
+    }
+
+    setEditBusy(true);
+    setEditError(null);
+    try {
+      await onEditFeed(
+        editingFeed.id,
+        url,
+        editGroupId === "ungrouped" ? null : Number(editGroupId),
+      );
+      setEditingFeed(null);
+    } catch (cause) {
+      setEditError(cause instanceof Error ? cause.message : "更新订阅失败。");
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   function openDeleteFeed() {
     if (contextTarget.kind !== "feed") return;
     setDeleteError(null);
@@ -196,10 +246,16 @@ export function FeedList({
         <ContextMenuContent>
           <ContextMenuGroup>
             {contextTarget.kind === "feed" ? (
-              <ContextMenuItem variant="destructive" onClick={openDeleteFeed}>
-                <Trash2 aria-hidden="true" data-icon="inline-start" />
-                删除订阅
-              </ContextMenuItem>
+              <>
+                <ContextMenuItem disabled={editDisabled} onClick={openEditFeed}>
+                  <Pencil aria-hidden="true" data-icon="inline-start" />
+                  编辑订阅
+                </ContextMenuItem>
+                <ContextMenuItem variant="destructive" onClick={openDeleteFeed}>
+                  <Trash2 aria-hidden="true" data-icon="inline-start" />
+                  删除订阅
+                </ContextMenuItem>
+              </>
             ) : (
               <>
                 {contextTarget.kind === "group" && !contextTarget.group.synthetic ? (
@@ -217,6 +273,77 @@ export function FeedList({
           </ContextMenuGroup>
         </ContextMenuContent>
       </ContextMenu>
+
+      <Dialog
+        open={Boolean(editingFeed)}
+        onOpenChange={(open) => !open && !editBusy && setEditingFeed(null)}
+      >
+        <DialogContent showCloseButton={false} aria-busy={editBusy}>
+          <form className="flex flex-col gap-4" onSubmit={submitFeedEdit}>
+            <DialogHeader>
+              <DialogTitle>编辑订阅</DialogTitle>
+              <DialogDescription>
+                修改“{editingFeed?.title}”的订阅地址和所属分组。
+              </DialogDescription>
+            </DialogHeader>
+            <FieldGroup className="gap-3">
+              <Field data-invalid={Boolean(editError)}>
+                <FieldLabel htmlFor="edit-feed-url">订阅源地址</FieldLabel>
+                <Input
+                  id="edit-feed-url"
+                  type="url"
+                  value={editUrl}
+                  autoFocus
+                  disabled={editBusy || editDisabled}
+                  aria-invalid={Boolean(editError)}
+                  onChange={(event) => {
+                    setEditUrl(event.target.value);
+                    setEditError(null);
+                  }}
+                />
+                <FieldError>{editError}</FieldError>
+              </Field>
+              <Field data-disabled={editBusy || editDisabled}>
+                <FieldLabel htmlFor="edit-feed-group">所属分组</FieldLabel>
+                <Select
+                  items={[
+                    { value: "ungrouped", label: "未分组" },
+                    ...groups.map((group) => ({ value: String(group.id), label: group.title })),
+                  ]}
+                  value={editGroupId}
+                  onValueChange={(value) => {
+                    if (value) setEditGroupId(value);
+                    setEditError(null);
+                  }}
+                  disabled={editBusy || editDisabled}
+                >
+                  <SelectTrigger id="edit-feed-group" aria-label="所属分组" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="ungrouped">未分组</SelectItem>
+                      {groups.map((group) => (
+                        <SelectItem key={group.id} value={String(group.id)}>
+                          {group.title}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" disabled={editBusy} />}>
+                取消
+              </DialogClose>
+              <Button type="submit" disabled={editBusy || editDisabled}>
+                {editBusy ? "正在保存..." : "保存并刷新"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(groupDialog)}

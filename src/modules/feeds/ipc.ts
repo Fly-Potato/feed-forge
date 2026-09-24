@@ -44,6 +44,22 @@ export async function updateFeed(feedId: number, title: string): Promise<FeedSum
   return parseIpcResult(feedSummarySchema, raw);
 }
 
+export async function updateFeedSource(
+  feedId: number,
+  url: string,
+  groupId: number | null,
+): Promise<FeedSummary> {
+  let raw: unknown;
+  try {
+    raw = await invoke<unknown>("feeds_update_source", {
+      input: { feedId, url, groupId },
+    });
+  } catch (error) {
+    throw normalizeIpcError(error);
+  }
+  return parseIpcResult(feedSummarySchema, raw);
+}
+
 export async function removeFeed(feedId: number): Promise<{ feedId: number }> {
   let raw: unknown;
   try {

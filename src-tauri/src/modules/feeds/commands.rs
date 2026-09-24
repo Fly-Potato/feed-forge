@@ -6,7 +6,7 @@ use super::{
     dto::{
         AddFeedInput, EmptyInput, FeedGroup, FeedGroupNameInput, FeedSummary, MoveFeedInput,
         RemoveFeedGroupInput, RemoveFeedInput, RemovedFeed, RemovedFeedGroup, UpdateFeedGroupInput,
-        UpdateFeedInput,
+        UpdateFeedInput, UpdateFeedSourceInput,
     },
     service,
 };
@@ -52,6 +52,30 @@ pub async fn feeds_update(
         Err(error) => log::warn!(
             target: "feed-forge::feeds",
             "feed update failed feed_id={} error_code={}",
+            input.feed_id,
+            error.code
+        ),
+    }
+    result
+}
+
+#[tauri::command]
+pub async fn feeds_update_source(
+    input: UpdateFeedSourceInput,
+    state: State<'_, AppState>,
+) -> Result<FeedSummary, AppError> {
+    let result =
+        service::update_feed_source(&state.db, input.feed_id, &input.url, input.group_id).await;
+    match &result {
+        Ok(_) => log::info!(
+            target: "feed-forge::feeds",
+            "feed source updated feed_id={} group_id={:?}",
+            input.feed_id,
+            input.group_id
+        ),
+        Err(error) => log::warn!(
+            target: "feed-forge::feeds",
+            "feed source update failed feed_id={} error_code={}",
             input.feed_id,
             error.code
         ),

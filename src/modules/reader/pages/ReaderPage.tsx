@@ -55,6 +55,7 @@ export function ReaderPage() {
     error: feedsError,
     status: feedsStatus,
     create,
+    edit,
     rename,
     remove,
     move,
@@ -297,6 +298,11 @@ export function ReaderPage() {
                     feeds={feeds}
                     selectedFeedId={selectedFeedId}
                     onSelect={selectReaderFeed}
+                    editDisabled={sync.isRunning}
+                    onEditFeed={async (feedId, url, groupId) => {
+                      await edit(feedId, url, groupId);
+                      await sync.start(feedId);
+                    }}
                     onCreateGroup={createGroup}
                     onRenameGroup={renameGroup}
                     onRemoveFeed={removeSelected}

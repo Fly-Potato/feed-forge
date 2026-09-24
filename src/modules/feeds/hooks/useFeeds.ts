@@ -12,6 +12,7 @@ import {
   removeFeedGroup,
   updateFeed,
   updateFeedGroup,
+  updateFeedSource,
 } from "../ipc";
 import { feedKeys } from "../keys";
 import type { FeedSummary } from "../types";
@@ -43,6 +44,17 @@ export function useFeeds() {
     },
     onSettled: invalidate,
   });
+  const sourceUpdate = useMutation({
+    mutationFn: ({ feedId, url, groupId }: {
+      feedId: number;
+      url: string;
+      groupId: number | null;
+    }) => updateFeedSource(feedId, url, groupId),
+    onSuccess: (feed) => queryClient.setQueryData<FeedSummary[]>(feedKeys.list, (current) =>
+      current?.map((item) => item.id === feed.id ? feed : item)
+        .sort((a, b) => a.title.localeCompare(b.title))),
+    onSettled: invalidate,
+  });
   const move = useMutation({
     mutationFn: ({ feedId, groupId }: { feedId: number; groupId: number | null }) => moveFeed(feedId, groupId),
     onSuccess: (feed) => queryClient.setQueryData<FeedSummary[]>(feedKeys.list, (current) =>
@@ -65,6 +77,8 @@ export function useFeeds() {
     refresh: () => queryClient.invalidateQueries({ queryKey: feedKeys.list }),
     create: (url: string, groupId: number | null) => add.mutateAsync({ url, groupId }),
     rename: (feedId: number, title: string) => update.mutateAsync({ feedId, title }),
+    edit: (feedId: number, url: string, groupId: number | null) =>
+      sourceUpdate.mutateAsync({ feedId, url, groupId }),
     remove: (feedId: number) => deletion.mutateAsync(feedId).then(() => {}),
     move: (feedId: number, groupId: number | null) => move.mutateAsync({ feedId, groupId }),
     createGroup: (title: string) => groupCreation.mutateAsync(title),

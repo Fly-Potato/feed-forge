@@ -10,6 +10,7 @@ import {
   removeFeed,
   removeFeedGroup,
   updateFeedGroup,
+  updateFeedSource,
 } from "../ipc";
 import * as feedsIpc from "../ipc";
 
@@ -72,6 +73,29 @@ describe("feeds IPC facade", () => {
 
     expect(calls).toEqual([
       ["feeds_update", { input: { feedId: 42, title: "OpenAI" } }],
+    ]);
+  });
+
+  test("wraps editable subscription settings in the feeds_update_source input", async () => {
+    const calls: Array<[string, unknown]> = [];
+    mockIPC((command, payload) => {
+      calls.push([command, payload]);
+      return { ...feed, url: "https://example.com/updated.xml", groupId: 3 };
+    });
+
+    await updateFeedSource(42, "https://example.com/updated.xml", 3);
+
+    expect(calls).toEqual([
+      [
+        "feeds_update_source",
+        {
+          input: {
+            feedId: 42,
+            url: "https://example.com/updated.xml",
+            groupId: 3,
+          },
+        },
+      ],
     ]);
   });
 

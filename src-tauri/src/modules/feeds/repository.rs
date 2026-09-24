@@ -63,6 +63,26 @@ pub async fn update_title(
     find(pool, feed_id).await?.ok_or(sqlx::Error::RowNotFound)
 }
 
+pub async fn update_source(
+    pool: &SqlitePool,
+    feed_id: i64,
+    url: &str,
+    group_id: Option<i64>,
+) -> Result<FeedSummary, sqlx::Error> {
+    sqlx::query(
+        "UPDATE feeds
+         SET url = ?, group_id = ?, etag = NULL, last_modified = NULL,
+             last_synced_at = NULL, sync_error = NULL
+         WHERE id = ?",
+    )
+    .bind(url)
+    .bind(group_id)
+    .bind(feed_id)
+    .execute(pool)
+    .await?;
+    find(pool, feed_id).await?.ok_or(sqlx::Error::RowNotFound)
+}
+
 pub async fn remove(pool: &SqlitePool, feed_id: i64) -> Result<u64, sqlx::Error> {
     Ok(sqlx::query("DELETE FROM feeds WHERE id = ?")
         .bind(feed_id)

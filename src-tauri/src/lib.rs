@@ -86,6 +86,7 @@ pub fn run() {
             modules::feeds::commands::feeds_list,
             modules::feeds::commands::feeds_add,
             modules::feeds::commands::feeds_update,
+            modules::feeds::commands::feeds_update_source,
             modules::feeds::commands::feeds_remove,
             modules::feeds::commands::feeds_groups_list,
             modules::feeds::commands::feeds_group_create,

@@ -54,6 +54,28 @@ pub async fn update_feed(
     }
 }
 
+pub async fn update_feed_source(
+    pool: &SqlitePool,
+    feed_id: i64,
+    value: &str,
+    group_id: Option<i64>,
+) -> Result<FeedSummary, AppError> {
+    if repository::find(pool, feed_id).await?.is_none() {
+        return Err(AppError::not_found());
+    }
+    let url = normalize_url(value)?;
+    if repository::find_by_url(pool, &url)
+        .await?
+        .is_some_and(|feed| feed.id != feed_id)
+    {
+        return Err(AppError::duplicate());
+    }
+    validate_group(pool, group_id).await?;
+    repository::update_source(pool, feed_id, &url, group_id)
+        .await
+        .map_err(AppError::from)
+}
+
 pub async fn remove_feed(pool: &SqlitePool, feed_id: i64) -> Result<(), AppError> {
     if repository::remove(pool, feed_id).await? == 0 {
         return Err(AppError::not_found());

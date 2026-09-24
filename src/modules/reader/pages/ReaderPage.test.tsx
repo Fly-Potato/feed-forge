@@ -459,6 +459,54 @@ test("adds a feed to the selected group from the title dialog", async () => {
   client.clear();
 });
 
+test("editing a saved subscription updates its settings and starts a scoped refresh", async () => {
+  const client = createAppQueryClient();
+  const group = { id: 3, title: "技术" };
+  const updateInputs: Array<{ feedId: number; url: string; groupId: number | null }> = [];
+  const syncInputs: Array<{ feedId?: number }> = [];
+  mockIPC((command, payload) => {
+    if (command === "feeds_list") return [feed];
+    if (command === "feeds_groups_list") return [group];
+    if (command === "settings_get") return { refreshIntervalMinutes: 60, theme: "system", openLinksInBrowser: true };
+    if (command === "articles_list") return { items: [], total: 0 };
+    if (command === "feeds_update_source") {
+      const input = (payload as { input: { feedId: number; url: string; groupId: number | null } }).input;
+      updateInputs.push(input);
+      return { ...feed, url: input.url, groupId: input.groupId };
+    }
+    if (command === "sync_start") {
+      const input = (payload as { input: { feedId?: number } }).input;
+      syncInputs.push(input);
+      return { jobId: 9 };
+    }
+    throw new Error(`Unexpected IPC command: ${command}`);
+  });
+
+  render(<QueryClientProvider client={client}><ReaderPage /></QueryClientProvider>);
+  const tree = await screen.findByRole("tree", { name: "订阅源" });
+  await userEvent.pointer([
+    { target: within(tree).getByRole("treeitem", { name: /订阅https/ }) },
+    "[MouseRight]",
+  ]);
+  await userEvent.click(screen.getByRole("menuitem", { name: "编辑订阅" }));
+  const dialog = screen.getByRole("dialog", { name: "编辑订阅" });
+  const urlInput = within(dialog).getByRole("textbox", { name: "订阅源地址" });
+  await userEvent.clear(urlInput);
+  await userEvent.type(urlInput, "https://example.com/updated.xml");
+  await userEvent.click(within(dialog).getByRole("combobox", { name: "所属分组" }));
+  await userEvent.click(await screen.findByRole("option", { name: "技术" }));
+  await userEvent.click(within(dialog).getByRole("button", { name: "保存并刷新" }));
+
+  await waitFor(() => expect(updateInputs).toEqual([{
+    feedId: 7,
+    url: "https://example.com/updated.xml",
+    groupId: 3,
+  }]));
+  expect(syncInputs).toEqual([{ feedId: 7 }]);
+  expect(screen.queryByRole("dialog", { name: "编辑订阅" })).not.toBeInTheDocument();
+  client.clear();
+});
+
 test("keeps the add-feed dialog open while submission is pending", async () => {
   const client = createAppQueryClient();
   let resolveAdd!: (value: typeof feed) => void;

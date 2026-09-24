@@ -19,6 +19,14 @@ pub struct UpdateFeedInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdateFeedSourceInput {
+    pub feed_id: i64,
+    pub url: String,
+    pub group_id: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RemoveFeedInput {
     pub feed_id: i64,
 }

@@ -28,6 +28,89 @@ async fn add_feed_rejects_duplicates_and_lists_saved_feed() {
 }
 
 #[tokio::test]
+async fn updating_feed_source_clears_http_cache_and_keeps_articles() {
+    let pool = db::test_pool().await;
+    let old_group = service::create_group(&pool, "旧分组").await.unwrap();
+    let new_group = service::create_group(&pool, "新分组").await.unwrap();
+    let feed = service::add_feed(
+        &pool,
+        "https://example.com/old.xml",
+        Some(old_group.id),
+    )
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE feeds SET etag = 'old-etag', last_modified = 'yesterday', last_synced_at = 'today', sync_error = 'old error' WHERE id = ?",
+    )
+    .bind(feed.id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO articles (feed_id, guid, title, created_at) VALUES (?, 'article-1', 'Existing article', 'now')",
+    )
+    .bind(feed.id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let updated = service::update_feed_source(
+        &pool,
+        feed.id,
+        " https://example.com/new.xml ",
+        Some(new_group.id),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(updated.url, "https://example.com/new.xml");
+    assert_eq!(updated.group_id, Some(new_group.id));
+    assert_eq!(updated.last_synced_at, None);
+    assert_eq!(updated.sync_error, None);
+    let cache: (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT etag, last_modified FROM feeds WHERE id = ?")
+            .bind(feed.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(cache, (None, None));
+    let article_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM articles WHERE feed_id = ?")
+            .bind(feed.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(article_count, 1);
+}
+
+#[tokio::test]
+async fn updating_feed_source_rejects_another_saved_url() {
+    let pool = db::test_pool().await;
+    let existing = service::add_feed(&pool, "https://example.com/existing.xml", None)
+        .await
+        .unwrap();
+    let edited = service::add_feed(&pool, "https://example.com/edited.xml", None)
+        .await
+        .unwrap();
+
+    let error = service::update_feed_source(&pool, edited.id, &existing.url, None)
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code, "duplicate");
+    assert_eq!(
+        service::list_feeds(&pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|feed| feed.id == edited.id)
+            .unwrap()
+            .url,
+        "https://example.com/edited.xml"
+    );
+}
+
+#[tokio::test]
 async fn remove_feed_returns_not_found_for_unknown_id() {
     let pool = db::test_pool().await;
 
