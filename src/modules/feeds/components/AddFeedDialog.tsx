@@ -49,11 +49,19 @@ export function AddFeedDialog({ groups, onAdd }: AddFeedDialogProps) {
           <DialogTitle>添加订阅源</DialogTitle>
           <DialogDescription>输入订阅源地址，并选择要添加到的分组。</DialogDescription>
         </DialogHeader>
-        <AddFeedForm groups={groups} onAdd={add} onBusyChange={setBusy} />
+        <AddFeedForm
+          groups={groups}
+          onAdd={add}
+          onBusyChange={setBusy}
+          submitButtonPlacement="footer"
+        />
         <DialogFooter>
           <DialogClose render={<Button variant="outline" disabled={busy} />}>
             取消
           </DialogClose>
+          <Button type="submit" form="add-feed-form" disabled={busy}>
+            {busy ? "正在添加..." : "添加订阅"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

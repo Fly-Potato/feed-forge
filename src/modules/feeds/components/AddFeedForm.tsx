@@ -22,9 +22,15 @@ interface AddFeedFormProps {
   groups: FeedGroup[];
   onAdd: (url: string, groupId: number | null) => Promise<unknown>;
   onBusyChange?: (busy: boolean) => void;
+  submitButtonPlacement?: "inline" | "footer";
 }
 
-export function AddFeedForm({ groups, onAdd, onBusyChange }: AddFeedFormProps) {
+export function AddFeedForm({
+  groups,
+  onAdd,
+  onBusyChange,
+  submitButtonPlacement = "inline",
+}: AddFeedFormProps) {
   const [url, setUrl] = useState("");
   const [groupId, setGroupId] = useState("ungrouped");
   const [submitting, setSubmitting] = useState(false);
@@ -57,7 +63,7 @@ export function AddFeedForm({ groups, onAdd, onBusyChange }: AddFeedFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form id={submitButtonPlacement === "footer" ? "add-feed-form" : undefined} onSubmit={handleSubmit}>
       <FieldGroup>
         <Field data-invalid={Boolean(error)}>
           <FieldLabel htmlFor="feed-url">订阅源地址</FieldLabel>
@@ -72,11 +78,13 @@ export function AddFeedForm({ groups, onAdd, onBusyChange }: AddFeedFormProps) {
               disabled={submitting}
               aria-invalid={Boolean(error)}
             />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton type="submit" variant="default" disabled={submitting}>
-                {submitting ? "正在添加..." : "添加订阅"}
-              </InputGroupButton>
-            </InputGroupAddon>
+            {submitButtonPlacement === "inline" ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton type="submit" variant="default" disabled={submitting}>
+                  {submitting ? "正在添加..." : "添加订阅"}
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
           </InputGroup>
           <FieldError>{error}</FieldError>
         </Field>

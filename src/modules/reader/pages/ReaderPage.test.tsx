@@ -452,7 +452,9 @@ test("adds a feed to the selected group from the title dialog", async () => {
   await userEvent.click(screen.getByRole("combobox", { name: "添加到分组" }));
   await userEvent.click(await screen.findByRole("option", { name: "技术" }));
   await userEvent.type(screen.getByRole("textbox", { name: "订阅源地址" }), "https://example.com/new.xml");
-  await userEvent.click(screen.getByRole("button", { name: "添加订阅" }));
+  const dialogFooter = screen.getByRole("dialog", { name: "添加订阅源" }).querySelector('[data-slot="dialog-footer"]');
+  expect(dialogFooter).not.toBeNull();
+  await userEvent.click(within(dialogFooter as HTMLElement).getByRole("button", { name: "添加订阅" }));
 
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "添加订阅源" })).not.toBeInTheDocument());
   expect(addInputs).toEqual([{ url: "https://example.com/new.xml", groupId: 3 }]);
